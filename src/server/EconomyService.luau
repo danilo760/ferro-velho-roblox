@@ -85,7 +85,7 @@ local function sellCarriedPart(player: Player, zone: Part)
 			part:Destroy()
 		end
 	end
-	task.delay(1, function() touchDebounce[player] = nil end)
+	touchDebounce[player] = nil
 end
 
 local function resolveTouchPlayer(hit: BasePart, ownerUserId: number): Player?
