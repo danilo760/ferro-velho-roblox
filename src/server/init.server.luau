@@ -3,6 +3,7 @@
 local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 
+local EnvironmentService = require(ServerScriptService.Server.EnvironmentService)
 local RecyclingCenterService = require(ServerScriptService.Server.RecyclingCenterService)
 local EconomyService = require(ServerScriptService.Server.EconomyService)
 local PlayerDataService = require(ServerScriptService.Server.PlayerDataService)
@@ -13,6 +14,7 @@ local ToolUpgradeService = require(ServerScriptService.Server.ToolUpgradeService
 local SpeedUpgradeService = require(ServerScriptService.Server.SpeedUpgradeService)
 local AuctionTicketCatalogService = require(ServerScriptService.Server.AuctionTicketCatalogService)
 
+EnvironmentService.start()
 RecyclingCenterService.start()
 EconomyService.start()
 PlayerDataService.start()

@@ -57,15 +57,10 @@ local function createPart(parent: Instance, name: string, size: Vector3, cf: CFr
 end
 
 local function buildCentralHub(parent: Model)
-	local mainFloor = createPart(parent, "CenterFloor", Vector3.new(38, 1, 38), CFrame.new(0, 0.5, 0), Enum.Material.Concrete, Color3.fromRGB(60, 64, 68), true, true)
+	local mainFloor = createPart(parent, "CenterFloor", Vector3.new(38, 1, 38), CFrame.new(0, 0.5, 0), Enum.Material.Concrete, Color3.fromRGB(55, 58, 62), true, true)
 
-	local floorBorder = Instance.new("SelectionBox")
-	floorBorder.Name = "CenterBorder"
-	floorBorder.Adornee = mainFloor
-	floorBorder.Color3 = Color3.fromRGB(240, 180, 40)
-	floorBorder.LineThickness = 0.12
-	floorBorder.SurfaceTransparency = 1
-	floorBorder.Parent = mainFloor
+	-- Borda com faixas zebradas de aviso industrial pintadas no concreto
+	local floorBorderHazard = createPart(parent, "CenterFloorHazard", Vector3.new(38.2, 1.05, 38.2), CFrame.new(0, 0.5, 0), Enum.Material.DiamondPlate, Color3.fromRGB(210, 170, 30), true, false)
 
 	local pillarPositions = {
 		Vector3.new(-8, 9, -8),
@@ -74,13 +69,30 @@ local function buildCentralHub(parent: Model)
 		Vector3.new(8, 9, 8),
 	}
 	for i, pos in pillarPositions do
-		createPart(parent, "Pillar" .. i, Vector3.new(1.8, 16, 1.8), CFrame.new(pos), Enum.Material.DiamondPlate, Color3.fromRGB(90, 95, 100), true, true)
+		createPart(parent, "Pillar" .. i, Vector3.new(1.8, 16, 1.8), CFrame.new(pos), Enum.Material.DiamondPlate, Color3.fromRGB(55, 60, 66), true, true)
 	end
 
-	createPart(parent, "IndustrialRoof", Vector3.new(22, 1.2, 22), CFrame.new(0, 17.5, 0), Enum.Material.Metal, Color3.fromRGB(45, 50, 55), true, true)
-	createPart(parent, "RoofCap", Vector3.new(16, 1.5, 16), CFrame.new(0, 18.8, 0), Enum.Material.Metal, Color3.fromRGB(180, 50, 45), true, true)
+	createPart(parent, "IndustrialRoof", Vector3.new(24, 1.2, 24), CFrame.new(0, 17.5, 0), Enum.Material.Metal, Color3.fromRGB(42, 46, 50), true, true)
+	createPart(parent, "RoofCap", Vector3.new(18, 1.5, 18), CFrame.new(0, 18.8, 0), Enum.Material.CorrodedMetal, Color3.fromRGB(150, 55, 45), true, true)
 
-	local signBoard = createPart(parent, "MainSignTower", Vector3.new(14, 3.5, 14), CFrame.new(0, 14.5, 0), Enum.Material.SmoothPlastic, Color3.fromRGB(25, 28, 32), true, true)
+	-- Chaminés industriais duplas com emissão suave de vapor
+	for _, xOff in { -5.0, 5.0 } do
+		local stack = createPart(parent, "Smokestack", Vector3.new(2.4, 6.5, 2.4), CFrame.new(xOff, 22.5, 0), Enum.Material.CorrodedMetal, Color3.fromRGB(45, 48, 52), true, true)
+		stack.Shape = Enum.PartType.Cylinder
+		stack.CFrame = stack.CFrame * CFrame.Angles(0, 0, math.rad(90))
+
+		local smoke = Instance.new("ParticleEmitter")
+		smoke.Name = "IndustrialSteam"
+		smoke.Rate = 5
+		smoke.Lifetime = NumberRange.new(3, 5)
+		smoke.Speed = NumberRange.new(2, 4)
+		smoke.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 4.0) })
+		smoke.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.65), NumberSequenceKeypoint.new(1, 1) })
+		smoke.Color = ColorSequence.new(Color3.fromRGB(190, 185, 180))
+		smoke.Parent = stack
+	end
+
+	local signBoard = createPart(parent, "MainSignTower", Vector3.new(15, 3.8, 15), CFrame.new(0, 14.5, 0), Enum.Material.DiamondPlate, Color3.fromRGB(30, 32, 36), true, true)
 	for _, face in {Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right} do
 		local gui = Instance.new("SurfaceGui")
 		gui.Name = "SignGui_" .. face.Name
@@ -92,20 +104,20 @@ local function buildCentralHub(parent: Model)
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.fromScale(1, 1)
 		label.BackgroundTransparency = 1
-		label.Text = "CENTRAL DE RECICLAGEM"
-		label.TextColor3 = Color3.fromRGB(80, 255, 130)
-		label.TextStrokeColor3 = Color3.fromRGB(15, 60, 25)
+		label.Text = "⚙️ CENTRAL DE RECICLAGEM ⚙️"
+		label.TextColor3 = Color3.fromRGB(240, 195, 50)
+		label.TextStrokeColor3 = Color3.fromRGB(30, 20, 10)
 		label.TextStrokeTransparency = 0.1
 		label.TextScaled = true
 		label.Font = Enum.Font.GothamBlack
 		label.Parent = gui
 	end
 
-	local lightFixture = createPart(parent, "CenterLightFixture", Vector3.new(3, 0.5, 3), CFrame.new(0, 16.5, 0), Enum.Material.Neon, Color3.fromRGB(255, 240, 200), true, false)
+	local lightFixture = createPart(parent, "CenterLightFixture", Vector3.new(3, 0.5, 3), CFrame.new(0, 16.5, 0), Enum.Material.Metal, Color3.fromRGB(45, 48, 52), true, false)
 	local pointLight = Instance.new("PointLight")
-	pointLight.Color = Color3.fromRGB(255, 235, 190)
-	pointLight.Brightness = 2.5
-	pointLight.Range = 45
+	pointLight.Color = Color3.fromRGB(255, 230, 170)
+	pointLight.Brightness = 2.8
+	pointLight.Range = 48
 	pointLight.Shadows = true
 	pointLight.Parent = lightFixture
 
@@ -195,38 +207,42 @@ local function buildCentralHub(parent: Model)
 	end
 
 	----------------------------------------------------------------------
-	-- ÁREA VISUAL DO REI DO FERRO-VELHO
+	-- ÁREA DO REI DO FERRO-VELHO (TRONO COM BASE EM MOTOR V8)
 	----------------------------------------------------------------------
-	local kingBase = createPart(parent, "KingPlatform", Vector3.new(7, 1.2, 7), CFrame.new(0, 1.1, 0), Enum.Material.DiamondPlate, Color3.fromRGB(45, 42, 38), true, true)
-	local kingBorder = Instance.new("SelectionBox")
-	kingBorder.Adornee = kingBase
-	kingBorder.Color3 = Color3.fromRGB(255, 215, 0)
-	kingBorder.LineThickness = 0.15
-	kingBorder.Parent = kingBase
+	local kingBase = createPart(parent, "KingPlatform", Vector3.new(7.5, 1.2, 7.5), CFrame.new(0, 1.1, 0), Enum.Material.DiamondPlate, Color3.fromRGB(42, 45, 50), true, true)
 
-	createPart(parent, "ThroneBack", Vector3.new(3.5, 4, 0.8), CFrame.new(0, 3.5, -1.8), Enum.Material.Metal, Color3.fromRGB(140, 50, 45), true, true)
-	createPart(parent, "ThroneSeat", Vector3.new(3.5, 1.2, 2.8), CFrame.new(0, 2.1, -0.6), Enum.Material.Concrete, Color3.fromRGB(80, 85, 90), true, true)
+	-- Bloco de motor V8 como base mecânica do trono
+	createPart(parent, "V8BlockBase", Vector3.new(4.2, 1.8, 3.4), CFrame.new(0, 2.4, -0.6), Enum.Material.CorrodedMetal, Color3.fromRGB(58, 62, 66), true, true)
 
+	-- Encosto e assento de couro industrial desgastado
+	createPart(parent, "ThroneBack", Vector3.new(3.6, 4.4, 0.8), CFrame.new(0, 4.5, -1.8), Enum.Material.Metal, Color3.fromRGB(130, 45, 40), true, true)
+	createPart(parent, "ThroneSeat", Vector3.new(3.6, 0.8, 2.6), CFrame.new(0, 3.5, -0.6), Enum.Material.Metal, Color3.fromRGB(110, 40, 35), true, true)
+
+	-- Tubos de escapamento duplos cromados saindo dos lados do trono
+	for _, xSide in { -2.4, 2.4 } do
+		createPart(parent, "ThroneExhaust", Vector3.new(0.6, 4.5, 0.6), CFrame.new(xSide, 4.5, -1.6) * CFrame.Angles(math.rad(-15), 0, 0), Enum.Material.Metal, Color3.fromRGB(160, 165, 170), true, false)
+	end
+
+	-- Coroa mecânica de engrenagens de bronze em rotação contínua
 	local crown = Instance.new("Part")
 	crown.Name = "FloatingCrown"
-	crown.Size = Vector3.new(2.2, 1.4, 2.2)
-	crown.CFrame = CFrame.new(0, 6.2, -0.6)
-	crown.Material = Enum.Material.Neon
-	crown.Color = Color3.fromRGB(255, 215, 30)
+	crown.Size = Vector3.new(2.4, 1.2, 2.4)
+	crown.CFrame = CFrame.new(0, 7.2, -0.6)
+	crown.Material = Enum.Material.Metal
+	crown.Color = Color3.fromRGB(225, 180, 45)
 	crown.Anchored = true
 	crown.CanCollide = false
 	crown.Parent = parent
 
-	local crownHighlight = Instance.new("Highlight")
-	crownHighlight.Adornee = crown
-	crownHighlight.FillColor = Color3.fromRGB(255, 225, 50)
-	crownHighlight.OutlineColor = Color3.fromRGB(255, 255, 200)
-	crownHighlight.FillTransparency = 0.3
-	crownHighlight.Parent = crown
+	local crownLight = Instance.new("PointLight")
+	crownLight.Color = Color3.fromRGB(255, 215, 60)
+	crownLight.Brightness = 1.8
+	crownLight.Range = 14
+	crownLight.Parent = crown
 
 	local crownBillboard = Instance.new("BillboardGui")
 	crownBillboard.Size = UDim2.fromOffset(260, 45)
-	crownBillboard.StudsOffset = Vector3.new(0, 1.8, 0)
+	crownBillboard.StudsOffset = Vector3.new(0, 1.6, 0)
 	crownBillboard.AlwaysOnTop = true
 	crownBillboard.Parent = crown
 
@@ -235,7 +251,7 @@ local function buildCentralHub(parent: Model)
 	crownText.BackgroundTransparency = 1
 	crownText.Text = "👑 REI DO FERRO-VELHO 👑"
 	crownText.TextColor3 = Color3.fromRGB(255, 220, 70)
-	crownText.TextStrokeColor3 = Color3.fromRGB(70, 45, 0)
+	crownText.TextStrokeColor3 = Color3.fromRGB(60, 35, 5)
 	crownText.TextStrokeTransparency = 0.1
 	crownText.TextScaled = true
 	crownText.Font = Enum.Font.GothamBlack
@@ -245,7 +261,7 @@ local function buildCentralHub(parent: Model)
 		local angle = 0
 		while crown.Parent do
 			angle += 1.5
-			crown.CFrame = CFrame.new(0, 6.2 + math.sin(os.clock() * 2) * 0.25, -0.6) * CFrame.Angles(0, math.rad(angle), 0)
+			crown.CFrame = CFrame.new(0, 7.2 + math.sin(os.clock() * 2) * 0.2, -0.6) * CFrame.Angles(0, math.rad(angle), 0)
 			RunService.Heartbeat:Wait()
 		end
 	end)
@@ -263,14 +279,11 @@ local function buildDock(index: number, parent: Model): DockData
 	local lookDirection = (target - pos).Unit
 	local dockCf = CFrame.lookAt(pos, pos + lookDirection)
 
-	local dockPad = createPart(dockModel, "DockPad", Vector3.new(16, 1, 14), dockCf, Enum.Material.Concrete, Color3.fromRGB(55, 58, 62), true, true)
+	local dockPad = createPart(dockModel, "DockPad", Vector3.new(16, 1, 14), dockCf, Enum.Material.Concrete, Color3.fromRGB(50, 52, 56), true, true)
 	dockModel.PrimaryPart = dockPad
 
-	local border = Instance.new("SelectionBox")
-	border.Adornee = dockPad
-	border.Color3 = Color3.fromRGB(80, 200, 120)
-	border.LineThickness = 0.08
-	border.Parent = dockPad
+	-- Borda com faixa zebrada amarela de segurança industrial
+	local hazardBorder = createPart(dockModel, "DockHazardBorder", Vector3.new(16.2, 1.05, 14.2), dockCf, Enum.Material.DiamondPlate, Color3.fromRGB(210, 170, 30), true, false)
 
 	local rampLength = 5
 	local rampCf = dockCf * CFrame.new(0, 0, -8.5)
@@ -279,19 +292,24 @@ local function buildDock(index: number, parent: Model): DockData
 	ramp.Size = Vector3.new(16, 1, rampLength)
 	ramp.CFrame = rampCf * CFrame.Angles(0, math.pi, 0)
 	ramp.Material = Enum.Material.Concrete
-	ramp.Color = Color3.fromRGB(70, 75, 80)
+	ramp.Color = Color3.fromRGB(65, 70, 75)
 	ramp.Anchored = true
 	ramp.CanCollide = true
 	ramp.Parent = dockModel
 
 	----------------------------------------------------------------------
-	-- ÁREA 1: ESTEIRA / DESCARTAR PEÇAS NORMAIS
+	-- ÁREA 1: ESTEIRA / DESCARTAR PEÇAS NORMAIS (ESTEIRA INDUSTRIAL)
 	----------------------------------------------------------------------
 	local dropCf = dockCf * CFrame.new(-4.2, 0.45, 0)
-	local partsDrop = createPart(dockModel, "PartsDropZone", Vector3.new(6, 0.6, 10), dropCf, Enum.Material.Neon, Color3.fromRGB(45, 195, 95), true, true)
+	local partsDrop = createPart(dockModel, "PartsDropZone", Vector3.new(6, 0.6, 10), dropCf, Enum.Material.DiamondPlate, Color3.fromRGB(42, 46, 50), true, true)
 	partsDrop:SetAttribute("OwnerUserId", 0)
 	partsDrop:SetAttribute("DockId", index)
 	partsDrop:SetAttribute("ZoneType", "NormalParts")
+
+	-- Trilhos guia da esteira de roletes
+	for _, xGuide in { -2.8, 2.8 } do
+		createPart(dockModel, "ChuteRail", Vector3.new(0.4, 0.8, 10), dropCf * CFrame.new(xGuide, 0.5, 0), Enum.Material.Metal, Color3.fromRGB(210, 170, 30), true, false)
+	end
 
 	local partsBillboard = Instance.new("BillboardGui")
 	partsBillboard.Size = UDim2.fromOffset(200, 50)
@@ -302,19 +320,25 @@ local function buildDock(index: number, parent: Model): DockData
 	local partsLabel = Instance.new("TextLabel")
 	partsLabel.Size = UDim2.fromScale(1, 1)
 	partsLabel.BackgroundTransparency = 1
-	partsLabel.Text = "ENTREGA DE PEÇAS"
+	partsLabel.Text = "📦 ESTEIRA DE PEÇAS"
 	partsLabel.TextColor3 = Color3.fromRGB(240, 255, 240)
-	partsLabel.TextStrokeColor3 = Color3.fromRGB(15, 60, 25)
+	partsLabel.TextStrokeColor3 = Color3.fromRGB(15, 50, 25)
 	partsLabel.TextStrokeTransparency = 0.2
 	partsLabel.TextScaled = true
 	partsLabel.Font = Enum.Font.GothamBold
 	partsLabel.Parent = partsBillboard
 
 	----------------------------------------------------------------------
-	-- ÁREA 2: BAIA DO GUINCHO / MOTOR
+	-- ÁREA 2: BAIA DO GUINCHO / MOTOR (COM BATENTES DE BORRACHA)
 	----------------------------------------------------------------------
 	local engineCf = dockCf * CFrame.new(4.2, 0.45, 0)
-	local engineBay = createPart(dockModel, "EngineBayZone", Vector3.new(6.5, 0.6, 10), engineCf, Enum.Material.DiamondPlate, Color3.fromRGB(225, 150, 40), true, true)
+	local engineBay = createPart(dockModel, "EngineBayZone", Vector3.new(6.5, 0.6, 10), engineCf, Enum.Material.DiamondPlate, Color3.fromRGB(60, 55, 50), true, true)
+	engineBay:SetAttribute("OwnerUserId", 0)
+	engineBay:SetAttribute("DockId", index)
+	engineBay:SetAttribute("ZoneType", "EngineBay")
+
+	-- Batente de borracha reforçada para parada do guincho
+	createPart(dockModel, "DockBumper", Vector3.new(6.5, 1.2, 0.8), engineCf * CFrame.new(0, 0.6, 4.6), Enum.Material.Rubber, Color3.fromRGB(24, 24, 26), true, true)
 	engineBay:SetAttribute("OwnerUserId", 0)
 	engineBay:SetAttribute("DockId", index)
 	engineBay:SetAttribute("ZoneType", "EngineBay")

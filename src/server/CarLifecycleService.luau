@@ -267,10 +267,12 @@ spawnCarForBox = function(player: Player, plot: Model, boxIndex: number)
 		displayName = cfg.DisplayName
 		local carName = string.format("BoxCar_%d_%d", player.UserId, boxIndex)
 		local opts: TrainingCarBuilder.CustomCarOptions = {
+			ModelId = cfg.ModelId,
 			BodyColor = cfg.BodyColor,
 			AccentColor = cfg.AccentColor,
 			InstalledParts = cfg.InstalledParts,
 			ScrapMultiplier = cfg.ScrapMultiplier,
+			ConservationName = cfg.ConservationName,
 		}
 		car = TrainingCarBuilder.create(boxOrigin * CFrame.new(0, -0.5, 0), carName, opts)
 	else

@@ -46,24 +46,39 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	local xOffset = BOX_X_OFFSETS[boxIndex]
 	local boxPos = position + Vector3.new(xOffset, 0.1, -4)
 
-	-- Piso demarcado do Box
+	-- Piso demarcado do Box (Concreto industrial escurecido)
 	local pad = Instance.new("Part")
 	pad.Name = "BoxPad"
 	pad.Size = Vector3.new(13.5, 0.2, 22)
 	pad.Position = boxPos
 	pad.Anchored = true
 	pad.Material = Enum.Material.Concrete
-	pad.Color = Color3.fromRGB(56, 60, 64)
+	pad.Color = Color3.fromRGB(48, 50, 54)
 	pad.TopSurface = Enum.SurfaceType.Smooth
 	pad.BottomSurface = Enum.SurfaceType.Smooth
 	pad.Parent = boxModel
 
-	local border = Instance.new("SelectionBox")
-	border.Name = "BoxBorder"
-	border.Adornee = pad
-	border.Color3 = if boxIndex == 1 then Color3.fromRGB(80, 220, 120) else Color3.fromRGB(230, 80, 70)
-	border.LineThickness = 0.06
-	border.Parent = pad
+	-- Faixa zebrada (Hazard Stripes) amarela e preta na entrada do Box
+	local frontHazard = Instance.new("Part")
+	frontHazard.Name = "FrontHazardStripe"
+	frontHazard.Size = Vector3.new(13.5, 0.22, 1.2)
+	frontHazard.Position = boxPos + Vector3.new(0, 0.02, 10.4)
+	frontHazard.Anchored = true
+	frontHazard.Material = Enum.Material.DiamondPlate
+	frontHazard.Color = if boxIndex == 1 then Color3.fromRGB(220, 180, 40) else Color3.fromRGB(180, 50, 45)
+	frontHazard.Parent = boxModel
+
+	-- Mancha de óleo sob o cofre do motor
+	local oilSpill = Instance.new("Part")
+	oilSpill.Name = "OilSpill"
+	oilSpill.Size = Vector3.new(4.5, 0.04, 3.8)
+	oilSpill.Position = boxPos + Vector3.new(0, 0.12, -4.5)
+	oilSpill.Anchored = true
+	oilSpill.CanCollide = false
+	oilSpill.Material = Enum.Material.SmoothPlastic
+	oilSpill.Color = Color3.fromRGB(18, 18, 20)
+	oilSpill.Transparency = 0.2
+	oilSpill.Parent = boxModel
 
 	-- Ponto de origem do carro para esse Box
 	local origin = Instance.new("Part")
@@ -85,15 +100,54 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	hoistOrigin.Transparency = 1
 	hoistOrigin.Parent = boxModel
 
-	-- Arco / Placa de identificação do Box
+	-- Colunas industriais de aço nas laterais da baia
+	for _, xSide in { -6.2, 6.2 } do
+		local col = Instance.new("Part")
+		col.Name = "BayColumn"
+		col.Size = Vector3.new(0.8, 9.0, 0.8)
+		col.Position = boxPos + Vector3.new(xSide, 4.5, 10.6)
+		col.Anchored = true
+		col.Material = Enum.Material.DiamondPlate
+		col.Color = Color3.fromRGB(42, 45, 50)
+		col.Parent = boxModel
+	end
+
+	-- Arco / Viga de identificação do Box
 	local arch = Instance.new("Part")
 	arch.Name = "BoxArch"
-	arch.Size = Vector3.new(11, 2.2, 0.5)
-	arch.Position = boxPos + Vector3.new(0, 7.2, 11)
+	arch.Size = Vector3.new(13.2, 1.8, 0.8)
+	arch.Position = boxPos + Vector3.new(0, 8.1, 10.6)
 	arch.Anchored = true
-	arch.Material = Enum.Material.Metal
+	arch.Material = Enum.Material.DiamondPlate
 	arch.Color = Color3.fromRGB(35, 38, 42)
 	arch.Parent = boxModel
+
+	-- Luminária industrial pendurada com iluminação quente de oficina
+	local lampHood = Instance.new("Part")
+	lampHood.Name = "ShopLamp"
+	lampHood.Size = Vector3.new(2.2, 0.6, 2.2)
+	lampHood.Position = boxPos + Vector3.new(0, 7.0, 0)
+	lampHood.Anchored = true
+	lampHood.Material = Enum.Material.Metal
+	lampHood.Color = Color3.fromRGB(38, 42, 46)
+	lampHood.Parent = boxModel
+
+	local lampBulb = Instance.new("Part")
+	lampBulb.Name = "ShopLampBulb"
+	lampBulb.Size = Vector3.new(1.2, 0.2, 1.2)
+	lampBulb.Position = boxPos + Vector3.new(0, 6.7, 0)
+	lampBulb.Anchored = true
+	lampBulb.Material = Enum.Material.Neon
+	lampBulb.Color = Color3.fromRGB(255, 230, 160)
+	lampBulb.Parent = boxModel
+
+	local shopLight = Instance.new("PointLight")
+	shopLight.Name = "ShopLight"
+	shopLight.Color = Color3.fromRGB(255, 225, 150)
+	shopLight.Brightness = 2.2
+	shopLight.Range = 26
+	shopLight.Shadows = true
+	shopLight.Parent = lampBulb
 
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "BoxGui"
@@ -107,23 +161,43 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
 	label.Text = if boxIndex == 1 then "BOX 1  [ATIVO]" else string.format("BOX %d  [BLOQUEADO]", boxIndex)
-	label.TextColor3 = if boxIndex == 1 then Color3.fromRGB(100, 255, 140) else Color3.fromRGB(255, 100, 90)
+	label.TextColor3 = if boxIndex == 1 then Color3.fromRGB(240, 200, 60) else Color3.fromRGB(240, 80, 70)
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBlack
 	label.Parent = gui
 
-	-- Barreira para Boxes Bloqueados (2 e 3)
+	-- Barreira para Boxes Bloqueados (2 e 3): Portão industrial pantográfico com corrente e cadeado
 	if boxIndex > 1 then
 		local barrier = Instance.new("Part")
 		barrier.Name = "BoxBarrier"
-		barrier.Size = Vector3.new(13.5, 6.5, 0.5)
-		barrier.Position = boxPos + Vector3.new(0, 3.4, 11)
+		barrier.Size = Vector3.new(13.0, 6.8, 0.4)
+		barrier.Position = boxPos + Vector3.new(0, 3.6, 10.6)
 		barrier.Anchored = true
 		barrier.CanCollide = true
-		barrier.Material = Enum.Material.Neon
-		barrier.Color = Color3.fromRGB(230, 50, 45)
-		barrier.Transparency = 0.55
+		barrier.Material = Enum.Material.DiamondPlate
+		barrier.Color = Color3.fromRGB(58, 62, 68)
+		barrier.Transparency = 0.2
 		barrier.Parent = boxModel
+
+		-- Faixa central de aviso
+		local warningBar = Instance.new("Part")
+		warningBar.Name = "WarningBar"
+		warningBar.Size = Vector3.new(13.1, 0.8, 0.5)
+		warningBar.Position = boxPos + Vector3.new(0, 3.6, 10.6)
+		warningBar.Anchored = true
+		warningBar.Material = Enum.Material.Metal
+		warningBar.Color = Color3.fromRGB(210, 160, 30)
+		warningBar.Parent = barrier
+
+		-- Cadeado e corrente
+		local padlock = Instance.new("Part")
+		padlock.Name = "Padlock"
+		padlock.Size = Vector3.new(1.0, 1.2, 0.6)
+		padlock.Position = boxPos + Vector3.new(0, 3.6, 10.9)
+		padlock.Anchored = true
+		padlock.Material = Enum.Material.Metal
+		padlock.Color = Color3.fromRGB(190, 150, 45)
+		padlock.Parent = barrier
 
 		local barrierBb = Instance.new("BillboardGui")
 		barrierBb.Name = "BarrierInfo"
@@ -136,8 +210,8 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 		infoLabel.Size = UDim2.fromScale(1, 1)
 		infoLabel.BackgroundTransparency = 1
 		infoLabel.Text = string.format("🔒 BOX %d BLOQUEADO\nRequer: %s", boxIndex, BOX_REQUISITES[boxIndex])
-		infoLabel.TextColor3 = Color3.fromRGB(255, 230, 130)
-		infoLabel.TextStrokeColor3 = Color3.fromRGB(60, 10, 10)
+		infoLabel.TextColor3 = Color3.fromRGB(255, 220, 110)
+		infoLabel.TextStrokeColor3 = Color3.fromRGB(40, 15, 10)
 		infoLabel.TextStrokeTransparency = 0.1
 		infoLabel.TextScaled = true
 		infoLabel.Font = Enum.Font.GothamBold
@@ -160,19 +234,63 @@ local function createPlot(index: number, position: Vector3): Model
 	pad.Position = position
 	pad.Anchored = true
 	pad.Material = Enum.Material.Concrete
-	pad.Color = Color3.fromRGB(72, 76, 80)
+	pad.Color = Color3.fromRGB(68, 72, 76)
 	pad.TopSurface = Enum.SurfaceType.Smooth
 	pad.BottomSurface = Enum.SurfaceType.Smooth
 	pad.Parent = model
 	model.PrimaryPart = pad
 
-	local border = Instance.new("SelectionBox")
-	border.Name = "PlotBorder"
-	border.Adornee = pad
-	border.Color3 = Color3.fromRGB(240, 174, 55)
-	border.LineThickness = 0.08
-	border.SurfaceTransparency = 1
-	border.Parent = pad
+	-- Mureta de contenção industrial nas laterais do lote
+	for _, sideX in { -PLOT_SIZE.X / 2 + 0.4, PLOT_SIZE.X / 2 - 0.4 } do
+		local curb = Instance.new("Part")
+		curb.Name = "SideCurb"
+		curb.Size = Vector3.new(0.8, 0.7, PLOT_SIZE.Z)
+		curb.Position = position + Vector3.new(sideX, 0.35, 0)
+		curb.Anchored = true
+		curb.Material = Enum.Material.Concrete
+		curb.Color = Color3.fromRGB(48, 52, 56)
+		curb.Parent = model
+	end
+
+	-- Parede de oficina ao fundo com chapa de aço corrugado
+	local backWall = Instance.new("Part")
+	backWall.Name = "WorkshopWall"
+	backWall.Size = Vector3.new(PLOT_SIZE.X - 1.6, 9.5, 0.8)
+	backWall.Position = position + Vector3.new(0, 4.75, -PLOT_SIZE.Z / 2 + 0.6)
+	backWall.Anchored = true
+	backWall.Material = Enum.Material.CorrodedMetal
+	backWall.Color = Color3.fromRGB(58, 62, 66)
+	backWall.Parent = model
+
+	-- Bancada pesada de trabalho de madeira e metal
+	local bench = Instance.new("Part")
+	bench.Name = "Workbench"
+	bench.Size = Vector3.new(12, 2.6, 2.8)
+	bench.Position = position + Vector3.new(0, 1.3, -PLOT_SIZE.Z / 2 + 2.5)
+	bench.Anchored = true
+	bench.Material = Enum.Material.WoodPlanks
+	bench.Color = Color3.fromRGB(95, 70, 50)
+	bench.Parent = model
+
+	-- Morsa de bancada (Bench Vise)
+	local vise = Instance.new("Part")
+	vise.Name = "BenchVise"
+	vise.Size = Vector3.new(1.2, 1.0, 1.4)
+	vise.Position = bench.Position + Vector3.new(4.5, 1.8, 0)
+	vise.Anchored = true
+	vise.Material = Enum.Material.Metal
+	vise.Color = Color3.fromRGB(45, 75, 120)
+	vise.Parent = model
+
+	-- Armário móvel de ferramentas vermelho (Rollaway Tool Cabinet)
+	local toolCabinet = Instance.new("Part")
+	toolCabinet.Name = "ToolCabinet"
+	toolCabinet.Size = Vector3.new(3.8, 4.2, 2.4)
+	toolCabinet.Position = position + Vector3.new(-16, 2.1, -PLOT_SIZE.Z / 2 + 2.5)
+	toolCabinet.Anchored = true
+	toolCabinet.Material = Enum.Material.Metal
+	toolCabinet.Color = Color3.fromRGB(180, 45, 40)
+	toolCabinet.Parent = model
 
 	local origin = Instance.new("Part")
 	origin.Name = "Origin"
@@ -194,10 +312,11 @@ local function createPlot(index: number, position: Vector3): Model
 
 	local sign = Instance.new("Part")
 	sign.Name = "OwnerSign"
-	sign.Size = Vector3.new(8, 4, 0.5)
-	sign.Position = position + Vector3.new(0, 3, 23)
+	sign.Size = Vector3.new(8, 3.5, 0.5)
+	sign.Position = position + Vector3.new(0, 2.8, 23)
 	sign.Anchored = true
-	sign.Color = Color3.fromRGB(35, 38, 42)
+	sign.Material = Enum.Material.DiamondPlate
+	sign.Color = Color3.fromRGB(38, 42, 46)
 	sign.Parent = model
 
 	local gui = Instance.new("SurfaceGui")
@@ -212,7 +331,7 @@ local function createPlot(index: number, position: Vector3): Model
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
 	label.Text = "LOTE LIVRE"
-	label.TextColor3 = Color3.fromRGB(255, 220, 115)
+	label.TextColor3 = Color3.fromRGB(255, 215, 90)
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBold
 	label.Parent = gui
@@ -225,7 +344,7 @@ local function createPlot(index: number, position: Vector3): Model
 		createBox(boxesFolder, b, position)
 	end
 
-	-- Terminal de Leilão físico no lote
+	-- Terminal de Leilão físico no lote (Estilo quiosque industrial blindado)
 	local terminalModel = Instance.new("Model")
 	terminalModel.Name = "AuctionTerminal"
 
@@ -236,26 +355,26 @@ local function createPlot(index: number, position: Vector3): Model
 	desk.Size = Vector3.new(4, 2.8, 2.5)
 	desk.Position = deskPos
 	desk.Anchored = true
-	desk.Material = Enum.Material.Metal
-	desk.Color = Color3.fromRGB(40, 44, 48)
+	desk.Material = Enum.Material.DiamondPlate
+	desk.Color = Color3.fromRGB(42, 46, 50)
 	desk.Parent = terminalModel
 
 	local monitor = Instance.new("Part")
 	monitor.Name = "TerminalMonitor"
-	monitor.Size = Vector3.new(2.6, 1.8, 0.3)
-	monitor.Position = deskPos + Vector3.new(0, 2.3, 0)
+	monitor.Size = Vector3.new(2.8, 2.0, 0.4)
+	monitor.Position = deskPos + Vector3.new(0, 2.4, 0)
 	monitor.Anchored = true
-	monitor.Material = Enum.Material.SmoothPlastic
-	monitor.Color = Color3.fromRGB(25, 28, 32)
+	monitor.Material = Enum.Material.Metal
+	monitor.Color = Color3.fromRGB(28, 30, 34)
 	monitor.Parent = terminalModel
 
 	local screen = Instance.new("Part")
 	screen.Name = "TerminalScreen"
-	screen.Size = Vector3.new(2.3, 1.5, 0.08)
-	screen.Position = deskPos + Vector3.new(0, 2.3, 0.16)
+	screen.Size = Vector3.new(2.5, 1.7, 0.08)
+	screen.Position = deskPos + Vector3.new(0, 2.4, 0.22)
 	screen.Anchored = true
-	screen.Material = Enum.Material.Neon
-	screen.Color = Color3.fromRGB(35, 140, 240)
+	screen.Material = Enum.Material.SmoothPlastic
+	screen.Color = Color3.fromRGB(15, 22, 20)
 	screen.Parent = terminalModel
 
 	local tScreenGui = Instance.new("SurfaceGui")
@@ -267,7 +386,7 @@ local function createPlot(index: number, position: Vector3): Model
 
 	local screenFrame = Instance.new("Frame")
 	screenFrame.Size = UDim2.fromScale(1, 1)
-	screenFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 28)
+	screenFrame.BackgroundColor3 = Color3.fromRGB(12, 18, 16)
 	screenFrame.Parent = tScreenGui
 
 	local screenTitle = Instance.new("TextLabel")
@@ -275,7 +394,7 @@ local function createPlot(index: number, position: Vector3): Model
 	screenTitle.Position = UDim2.fromOffset(5, 5)
 	screenTitle.BackgroundTransparency = 1
 	screenTitle.Text = "⚖️ LEILÃO DE SUCATAS"
-	screenTitle.TextColor3 = Color3.fromRGB(255, 215, 60)
+	screenTitle.TextColor3 = Color3.fromRGB(240, 195, 50)
 	screenTitle.TextScaled = true
 	screenTitle.Font = Enum.Font.GothamBlack
 	screenTitle.Parent = screenFrame
@@ -285,7 +404,7 @@ local function createPlot(index: number, position: Vector3): Model
 	screenSub.Position = UDim2.new(0, 5, 0.5, 0)
 	screenSub.BackgroundTransparency = 1
 	screenSub.Text = "5 OFERTAS / 5 MIN\nPressione [E]"
-	screenSub.TextColor3 = Color3.fromRGB(120, 220, 255)
+	screenSub.TextColor3 = Color3.fromRGB(100, 210, 140)
 	screenSub.TextScaled = true
 	screenSub.Font = Enum.Font.GothamBold
 	screenSub.Parent = screenFrame
@@ -321,9 +440,9 @@ function PlotService.SyncBoxes(player: Player)
 			local isUnlocked = b <= unlockedCount
 			boxModel:SetAttribute("IsUnlocked", isUnlocked)
 
-			local border = boxModel:FindFirstChild("BoxPad") and boxModel.BoxPad:FindFirstChild("BoxBorder")
-			if border and border:IsA("SelectionBox") then
-				border.Color3 = if isUnlocked then Color3.fromRGB(80, 220, 120) else Color3.fromRGB(230, 80, 70)
+			local frontHazard = boxModel:FindFirstChild("FrontHazardStripe")
+			if frontHazard and frontHazard:IsA("BasePart") then
+				frontHazard.Color = if isUnlocked then Color3.fromRGB(220, 180, 40) else Color3.fromRGB(180, 50, 45)
 			end
 
 			local arch = boxModel:FindFirstChild("BoxArch")
@@ -331,16 +450,19 @@ function PlotService.SyncBoxes(player: Player)
 			local label = gui and gui:FindFirstChild("BoxLabel")
 			if label and label:IsA("TextLabel") then
 				label.Text = if isUnlocked then string.format("BOX %d  [ATIVO]", b) else string.format("BOX %d  [BLOQUEADO]", b)
-				label.TextColor3 = if isUnlocked then Color3.fromRGB(100, 255, 140) else Color3.fromRGB(255, 100, 90)
+				label.TextColor3 = if isUnlocked then Color3.fromRGB(240, 200, 60) else Color3.fromRGB(240, 80, 70)
 			end
 
 			local barrier = boxModel:FindFirstChild("BoxBarrier")
 			if barrier and barrier:IsA("BasePart") then
 				barrier.CanCollide = not isUnlocked
-				barrier.Transparency = if isUnlocked then 1 else 0.55
-				local bb = barrier:FindFirstChild("BarrierInfo")
-				if bb and bb:IsA("BillboardGui") then
-					bb.Enabled = not isUnlocked
+				barrier.Transparency = if isUnlocked then 1 else 0.2
+				for _, ch in barrier:GetChildren() do
+					if ch:IsA("BasePart") then
+						ch.Transparency = if isUnlocked then 1 else 0
+					elseif ch:IsA("BillboardGui") then
+						ch.Enabled = not isUnlocked
+					end
 				end
 			end
 		end
