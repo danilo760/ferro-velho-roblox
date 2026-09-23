@@ -86,21 +86,27 @@ function EngineHoistService.start(car: Model)
 	engine:SetAttribute("PartState", "Installed")
 	engine:SetAttribute("CarrierUserId", 0)
 
+	local enginePoint = Instance.new("Attachment")
+	enginePoint.Name = "EngineInteractionPoint"
+	enginePoint.Position = Vector3.new(0, engine.Size.Y / 2 + 0.8, 0)
+	enginePoint.Parent = engine
+
 	local enginePrompt = Instance.new("ProximityPrompt")
 	enginePrompt.Name = "EnginePrompt"
 	enginePrompt.KeyboardKeyCode = Enum.KeyCode.E
-	enginePrompt.MaxActivationDistance = 10
+	enginePrompt.MaxActivationDistance = 11
 	enginePrompt.RequiresLineOfSight = false
-	enginePrompt.Parent = engine
+	enginePrompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton
+	enginePrompt.Parent = enginePoint
 
 	local function refreshEnginePrompt()
 		if engine:GetAttribute("PartState") ~= "Installed" then enginePrompt.Enabled = false return end
-		enginePrompt.Enabled = true
 		if not dependencyRemoved(car, "Hood") then
-			enginePrompt.ActionText = "Bloqueado"
-			enginePrompt.ObjectText = "Remova Capô"
-			enginePrompt.HoldDuration = 0
-		elseif not dependencyRemoved(car, "Battery") then
+			enginePrompt.Enabled = false
+			return
+		end
+		enginePrompt.Enabled = true
+		if not dependencyRemoved(car, "Battery") then
 			enginePrompt.ActionText = "Bloqueado"
 			enginePrompt.ObjectText = "Remova Bateria"
 			enginePrompt.HoldDuration = 0
