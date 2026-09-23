@@ -44,55 +44,33 @@ local function createButton(player: Player, plot: Model)
 	local currentDefinition = SpeedUpgradeConfig.Get(levelNumber)
 	if not nextDefinition or not nextDefinition.PurchaseCost or not currentDefinition then return end
 
-	local origin = plot:FindFirstChild("Origin")
-	assert(origin and origin:IsA("BasePart"), "Plot origin is missing")
+	local anchorCf = PlotService.GetUpgradeAnchor(player, "SpeedUpgradeAnchor")
+	assert(anchorCf, "Speed upgrade workshop anchor is missing")
 
 	local button = Instance.new("Part")
 	button.Name = "SpeedUpgradeButton_" .. player.UserId
 	button:SetAttribute("OwnerUserId", player.UserId)
 	button:SetAttribute("UpgradeId", "SpeedLevel_" .. nextLevel)
-	button.Size = Vector3.new(7, 1, 7)
-	button.CFrame = origin.CFrame * CFrame.new(-14, 0, 14)
+	button.Size = Vector3.new(6.5, 0.45, 5.2)
+	button.CFrame = anchorCf
 	button.Anchored = true
 	button.CanCollide = true
 	button.Material = Enum.Material.DiamondPlate
 	button.Color = Color3.fromRGB(0, 205, 255)
 	button.Parent = plot
 
-	local signBoard = Instance.new("Part")
-	signBoard.Name = "UpgradeSign"
-	signBoard.Size = Vector3.new(8, 4.2, 0.5)
-	signBoard.CFrame = button.CFrame * CFrame.new(0, 3.3, -3.2)
-	signBoard.Anchored = true
-	signBoard.CanCollide = false
-	signBoard.Material = Enum.Material.DiamondPlate
-	signBoard.Color = Color3.fromRGB(27, 39, 45)
-	signBoard.Parent = button
-
-	for _, x in { -3.4, 3.4 } do
-		local post = Instance.new("Part")
-		post.Name = "SignPost"
-		post.Size = Vector3.new(0.35, 2.8, 0.35)
-		post.CFrame = button.CFrame * CFrame.new(x, 1.4, -3.2)
-		post.Anchored = true
-		post.CanCollide = false
-		post.Material = Enum.Material.Metal
-		post.Color = Color3.fromRGB(38, 42, 46)
-		post.Parent = button
-	end
-
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "UpgradeGui"
-	gui.Face = Enum.NormalId.Front
+	gui.Face = Enum.NormalId.Top
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 	gui.PixelsPerStud = 50
-	gui.Parent = signBoard
+	gui.Parent = button
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = string.format("VELOCIDADE NÍVEL %d\n%s (R$ %d)\n%d > %d studs/s",
-		nextLevel, nextDefinition.Name, nextDefinition.PurchaseCost, currentDefinition.Speed, nextDefinition.Speed)
+	label.Text = string.format("MOBILIDADE NÍVEL %d\nR$ %d\n%d > %d STUDS/S",
+		nextLevel, nextDefinition.PurchaseCost, currentDefinition.Speed, nextDefinition.Speed)
 	label.TextColor3 = Color3.fromRGB(240, 255, 255)
 	label.TextStrokeColor3 = Color3.fromRGB(0, 60, 100)
 	label.TextStrokeTransparency = 0.2
@@ -120,6 +98,7 @@ local function createButton(player: Player, plot: Model)
 		buying = true
 		if EconomyService.TrySpend(player, nextDefinition.PurchaseCost :: number) then
 			player:SetAttribute("SpeedLevel", nextLevel)
+			PlotService.SyncUpgradeWorkshop(player)
 			if player.Character then
 				applySpeedToCharacter(player, player.Character)
 			end

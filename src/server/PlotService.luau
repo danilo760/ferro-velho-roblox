@@ -236,6 +236,309 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	return boxModel
 end
 
+local function createStationDisplay(parent: Instance, name: string, cf: CFrame, accentColor: Color3, title: string): TextLabel
+	local board = Instance.new("Part")
+	board.Name = name
+	board.Size = Vector3.new(7.2, 3.8, 0.35)
+	board.CFrame = cf
+	board.Anchored = true
+	board.CanCollide = false
+	board.Material = Enum.Material.DiamondPlate
+	board.Color = Color3.fromRGB(27, 30, 34)
+	board.Parent = parent
+
+	local accent = Instance.new("Part")
+	accent.Name = "Accent"
+	accent.Size = Vector3.new(7.4, 0.35, 0.42)
+	accent.CFrame = cf * CFrame.new(0, 2.05, 0)
+	accent.Anchored = true
+	accent.CanCollide = false
+	accent.Material = Enum.Material.Neon
+	accent.Color = accentColor
+	accent.Parent = board
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "StationGui"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 55
+	gui.LightInfluence = 0.2
+	gui.Parent = board
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "TitleLabel"
+	titleLabel.Size = UDim2.new(1, -12, 0.32, 0)
+	titleLabel.Position = UDim2.fromOffset(6, 4)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = title
+	titleLabel.TextColor3 = accentColor
+	titleLabel.TextScaled = true
+	titleLabel.Font = Enum.Font.GothamBlack
+	titleLabel.Parent = gui
+
+	local statusLabel = Instance.new("TextLabel")
+	statusLabel.Name = "StatusLabel"
+	statusLabel.Size = UDim2.new(1, -12, 0.63, -6)
+	statusLabel.Position = UDim2.new(0, 6, 0.34, 2)
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Text = "AGUARDANDO DONO"
+	statusLabel.TextColor3 = Color3.fromRGB(225, 230, 235)
+	statusLabel.TextStrokeTransparency = 0.65
+	statusLabel.TextScaled = true
+	statusLabel.TextWrapped = true
+	statusLabel.Font = Enum.Font.GothamBold
+	statusLabel.Parent = gui
+
+	return statusLabel
+end
+
+local function createUpgradeWorkshop(plot: Model, position: Vector3)
+	local workshop = Instance.new("Model")
+	workshop.Name = "UpgradeWorkshop"
+	workshop.Parent = plot
+
+	local center = position + Vector3.new(14.5, 0, 16.2)
+	local steel = Color3.fromRGB(40, 44, 48)
+	local wall = Color3.fromRGB(61, 66, 70)
+	local yellow = Color3.fromRGB(235, 184, 42)
+
+	local floor = Instance.new("Part")
+	floor.Name = "UpgradeFloor"
+	floor.Size = Vector3.new(18, 0.35, 13.5)
+	floor.Position = center + Vector3.new(0, 1.02, 0)
+	floor.Anchored = true
+	floor.Material = Enum.Material.DiamondPlate
+	floor.Color = Color3.fromRGB(48, 52, 55)
+	floor.Parent = workshop
+
+	local backWall = Instance.new("Part")
+	backWall.Name = "UpgradeBackWall"
+	backWall.Size = Vector3.new(18, 7, 0.6)
+	backWall.Position = center + Vector3.new(0, 4.5, 6.45)
+	backWall.Anchored = true
+	backWall.Material = Enum.Material.CorrodedMetal
+	backWall.Color = wall
+	backWall.Parent = workshop
+
+	local sideWall = Instance.new("Part")
+	sideWall.Name = "UpgradeSideWall"
+	sideWall.Size = Vector3.new(0.6, 7, 13.5)
+	sideWall.Position = center + Vector3.new(8.7, 4.5, 0)
+	sideWall.Anchored = true
+	sideWall.Material = Enum.Material.CorrodedMetal
+	sideWall.Color = wall
+	sideWall.Parent = workshop
+
+	local roof = Instance.new("Part")
+	roof.Name = "UpgradeRoof"
+	roof.Size = Vector3.new(18.8, 0.8, 14.3)
+	roof.Position = center + Vector3.new(0, 8.1, 0)
+	roof.Anchored = true
+	roof.Material = Enum.Material.Metal
+	roof.Color = steel
+	roof.Parent = workshop
+
+	for _, xOffset in { -8.4, 8.4 } do
+		local post = Instance.new("Part")
+		post.Name = "UpgradeFrontPost"
+		post.Size = Vector3.new(0.7, 7.2, 0.7)
+		post.Position = center + Vector3.new(xOffset, 4.5, -6.35)
+		post.Anchored = true
+		post.Material = Enum.Material.DiamondPlate
+		post.Color = steel
+		post.Parent = workshop
+	end
+
+	local header = Instance.new("Part")
+	header.Name = "UpgradeHeader"
+	header.Size = Vector3.new(18, 2.3, 0.55)
+	header.Position = center + Vector3.new(0, 6.75, -6.4)
+	header.Anchored = true
+	header.CanCollide = false
+	header.Material = Enum.Material.DiamondPlate
+	header.Color = Color3.fromRGB(29, 32, 35)
+	header.Parent = workshop
+
+	local headerGui = Instance.new("SurfaceGui")
+	headerGui.Face = Enum.NormalId.Front
+	headerGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	headerGui.PixelsPerStud = 55
+	headerGui.Parent = header
+
+	local headerLabel = Instance.new("TextLabel")
+	headerLabel.Size = UDim2.fromScale(1, 1)
+	headerLabel.BackgroundTransparency = 1
+	headerLabel.Text = "CENTRO DE MELHORIAS"
+	headerLabel.TextColor3 = yellow
+	headerLabel.TextStrokeTransparency = 0.25
+	headerLabel.TextScaled = true
+	headerLabel.Font = Enum.Font.GothamBlack
+	headerLabel.Parent = headerGui
+
+	local divider = Instance.new("Part")
+	divider.Name = "StationDivider"
+	divider.Size = Vector3.new(0.35, 6.4, 12.4)
+	divider.Position = center + Vector3.new(0, 4.2, 0.3)
+	divider.Anchored = true
+	divider.CanCollide = false
+	divider.Material = Enum.Material.Metal
+	divider.Color = Color3.fromRGB(34, 37, 40)
+	divider.Parent = workshop
+
+	local toolDisplayCf = CFrame.new(position + Vector3.new(10.2, 4.5, 22.15))
+	local speedDisplayCf = CFrame.new(position + Vector3.new(18.5, 4.5, 22.15))
+	createStationDisplay(workshop, "ToolStationDisplay", toolDisplayCf, Color3.fromRGB(80, 155, 255), "FERRAMENTAS")
+	createStationDisplay(workshop, "SpeedStationDisplay", speedDisplayCf, Color3.fromRGB(35, 220, 190), "MOBILIDADE")
+
+	-- Ferramenta física na parede: cabo, cabeça e soquete da chave catraca.
+	local ratchetHandle = Instance.new("Part")
+	ratchetHandle.Name = "RatchetDisplayHandle"
+	ratchetHandle.Size = Vector3.new(0.38, 3.2, 0.38)
+	ratchetHandle.CFrame = CFrame.new(position + Vector3.new(10.2, 5.5, 21.72)) * CFrame.Angles(0, 0, math.rad(-35))
+	ratchetHandle.Anchored = true
+	ratchetHandle.CanCollide = false
+	ratchetHandle.Material = Enum.Material.Metal
+	ratchetHandle.Color = Color3.fromRGB(175, 182, 190)
+	ratchetHandle.Parent = workshop
+
+	local ratchetHead = Instance.new("Part")
+	ratchetHead.Name = "RatchetDisplayHead"
+	ratchetHead.Size = Vector3.new(0.5, 1.1, 1.1)
+	ratchetHead.CFrame = CFrame.new(position + Vector3.new(9.3, 6.75, 21.72)) * CFrame.Angles(0, math.rad(90), 0)
+	ratchetHead.Shape = Enum.PartType.Cylinder
+	ratchetHead.Anchored = true
+	ratchetHead.CanCollide = false
+	ratchetHead.Material = Enum.Material.Metal
+	ratchetHead.Color = Color3.fromRGB(205, 210, 215)
+	ratchetHead.Parent = workshop
+
+	local toolInstalledLight = Instance.new("Part")
+	toolInstalledLight.Name = "ToolInstalledLight"
+	toolInstalledLight.Size = Vector3.new(1.1, 0.35, 0.35)
+	toolInstalledLight.Position = position + Vector3.new(10.2, 2.35, 21.7)
+	toolInstalledLight.Anchored = true
+	toolInstalledLight.CanCollide = false
+	toolInstalledLight.Material = Enum.Material.Metal
+	toolInstalledLight.Color = Color3.fromRGB(55, 60, 64)
+	toolInstalledLight.Parent = workshop
+
+	-- Roda na parede para representar a categoria de mobilidade.
+	local speedWheel = Instance.new("Part")
+	speedWheel.Name = "MobilityWheelDisplay"
+	speedWheel.Size = Vector3.new(0.7, 2.8, 2.8)
+	speedWheel.CFrame = CFrame.new(position + Vector3.new(18.5, 5.9, 21.72)) * CFrame.Angles(0, math.rad(90), 0)
+	speedWheel.Shape = Enum.PartType.Cylinder
+	speedWheel.Anchored = true
+	speedWheel.CanCollide = false
+	speedWheel.Material = Enum.Material.Rubber
+	speedWheel.Color = Color3.fromRGB(24, 25, 27)
+	speedWheel.Parent = workshop
+
+	local speedHub = Instance.new("Part")
+	speedHub.Name = "MobilityWheelHub"
+	speedHub.Size = Vector3.new(0.75, 1.15, 1.15)
+	speedHub.CFrame = speedWheel.CFrame
+	speedHub.Shape = Enum.PartType.Cylinder
+	speedHub.Anchored = true
+	speedHub.CanCollide = false
+	speedHub.Material = Enum.Material.Metal
+	speedHub.Color = Color3.fromRGB(45, 165, 145)
+	speedHub.Parent = workshop
+
+	for level = 1, 5 do
+		local indicator = Instance.new("Part")
+		indicator.Name = "SpeedIndicator_" .. level
+		indicator.Size = Vector3.new(0.9, 0.35, 0.35)
+		indicator.Position = position + Vector3.new(15.7 + level * 0.95, 2.35, 21.7)
+		indicator.Anchored = true
+		indicator.CanCollide = false
+		indicator.Material = Enum.Material.Metal
+		indicator.Color = Color3.fromRGB(55, 60, 64)
+		indicator.Parent = workshop
+	end
+
+	for stationIndex, stationX in { 10.2, 18.5 } do
+		local anchor = Instance.new("Part")
+		anchor.Name = if stationIndex == 1 then "ToolUpgradeAnchor" else "SpeedUpgradeAnchor"
+		anchor.Size = Vector3.new(1, 1, 1)
+		anchor.Position = position + Vector3.new(stationX, 1.4, 15.3)
+		anchor.Anchored = true
+		anchor.CanCollide = false
+		anchor.Transparency = 1
+		anchor.Parent = workshop
+
+		local lamp = Instance.new("Part")
+		lamp.Name = "StationLamp"
+		lamp.Size = Vector3.new(2.2, 0.35, 1.4)
+		lamp.Position = position + Vector3.new(stationX, 7.45, 15.3)
+		lamp.Anchored = true
+		lamp.CanCollide = false
+		lamp.Material = Enum.Material.Neon
+		lamp.Color = if stationIndex == 1 then Color3.fromRGB(80, 155, 255) else Color3.fromRGB(35, 220, 190)
+		lamp.Parent = workshop
+
+		local light = Instance.new("PointLight")
+		light.Color = lamp.Color
+		light.Brightness = 1.5
+		light.Range = 12
+		light.Parent = lamp
+	end
+
+	local stripe = Instance.new("Part")
+	stripe.Name = "UpgradeHazardStripe"
+	stripe.Size = Vector3.new(18, 0.12, 0.8)
+	stripe.Position = center + Vector3.new(0, 1.22, -6.25)
+	stripe.Anchored = true
+	stripe.CanCollide = false
+	stripe.Material = Enum.Material.SmoothPlastic
+	stripe.Color = yellow
+	stripe.Parent = workshop
+end
+
+local function setWorkshopStatus(plot: Model, toolLevel: number, speedLevel: number, isOwned: boolean)
+	local workshop = plot:FindFirstChild("UpgradeWorkshop")
+	if not workshop then return end
+
+	local toolDisplay = workshop:FindFirstChild("ToolStationDisplay")
+	local toolGui = toolDisplay and toolDisplay:FindFirstChild("StationGui")
+	local toolStatus = toolGui and toolGui:FindFirstChild("StatusLabel")
+	if toolStatus and toolStatus:IsA("TextLabel") then
+		if not isOwned then
+			toolStatus.Text = "AGUARDANDO DONO"
+		elseif toolLevel >= 2 then
+			toolStatus.Text = "NIVEL 2\nCHAVE CATRACA\nINSTALADA"
+		else
+			toolStatus.Text = "NIVEL 1\nFERRAMENTAS BASICAS\nMELHORIA DISPONIVEL"
+		end
+	end
+	local toolInstalledLight = workshop:FindFirstChild("ToolInstalledLight")
+	if toolInstalledLight and toolInstalledLight:IsA("BasePart") then
+		local installed = isOwned and toolLevel >= 2
+		toolInstalledLight.Material = if installed then Enum.Material.Neon else Enum.Material.Metal
+		toolInstalledLight.Color = if installed then Color3.fromRGB(80, 155, 255) else Color3.fromRGB(55, 60, 64)
+	end
+
+	local speedDisplay = workshop:FindFirstChild("SpeedStationDisplay")
+	local speedGui = speedDisplay and speedDisplay:FindFirstChild("StationGui")
+	local speedStatus = speedGui and speedGui:FindFirstChild("StatusLabel")
+	if speedStatus and speedStatus:IsA("TextLabel") then
+		if not isOwned then
+			speedStatus.Text = "AGUARDANDO DONO"
+		else
+			local speed = 14 + math.clamp(speedLevel, 1, 5) * 2
+			speedStatus.Text = string.format("NIVEL %d / 5\n%d STUDS/S\n%s", speedLevel, speed, if speedLevel >= 5 then "MAXIMO" else "MELHORIA DISPONIVEL")
+		end
+	end
+
+	for level = 1, 5 do
+		local indicator = workshop:FindFirstChild("SpeedIndicator_" .. level)
+		if indicator and indicator:IsA("BasePart") then
+			indicator.Material = if isOwned and level <= speedLevel then Enum.Material.Neon else Enum.Material.Metal
+			indicator.Color = if isOwned and level <= speedLevel then Color3.fromRGB(35, 220, 190) else Color3.fromRGB(55, 60, 64)
+		end
+	end
+end
+
 local function createPlot(index: number, position: Vector3): Model
 	local model = Instance.new("Model")
 	model.Name = "Plot" .. index
@@ -253,6 +556,8 @@ local function createPlot(index: number, position: Vector3): Model
 	pad.BottomSurface = Enum.SurfaceType.Smooth
 	pad.Parent = model
 	model.PrimaryPart = pad
+
+	createUpgradeWorkshop(model, position)
 
 	-- Mureta de contenção industrial nas laterais do lote
 	for _, sideX in { -PLOT_SIZE.X / 2 + 0.4, PLOT_SIZE.X / 2 - 0.4 } do
@@ -544,6 +849,23 @@ function PlotService.SyncBoxes(player: Player)
 	end
 end
 
+function PlotService.SyncUpgradeWorkshop(player: Player)
+	local plot = playerPlots[player]
+	if not plot then return end
+	local toolValue = player:GetAttribute("ToolLevel")
+	local speedValue = player:GetAttribute("SpeedLevel")
+	local toolLevel = if typeof(toolValue) == "number" then math.clamp(toolValue, 1, 2) else 1
+	local speedLevel = if typeof(speedValue) == "number" then math.clamp(speedValue, 1, 5) else 1
+	setWorkshopStatus(plot, toolLevel, speedLevel, true)
+end
+
+function PlotService.GetUpgradeAnchor(player: Player, anchorName: string): CFrame?
+	local plot = PlotService.GetPlot(player)
+	local workshop = plot and plot:FindFirstChild("UpgradeWorkshop")
+	local anchor = workshop and workshop:FindFirstChild(anchorName)
+	return if anchor and anchor:IsA("BasePart") then anchor.CFrame else nil
+end
+
 function PlotService.UnlockBox(player: Player, boxIndex: number): boolean
 	if boxIndex < 1 or boxIndex > 3 then return false end
 	local current = player:GetAttribute("UnlockedBoxes")
@@ -595,9 +917,16 @@ local function assignPlot(player: Player)
 			end
 
 			PlotService.SyncBoxes(player)
+			PlotService.SyncUpgradeWorkshop(player)
 
 			player:GetAttributeChangedSignal("UnlockedBoxes"):Connect(function()
 				PlotService.SyncBoxes(player)
+			end)
+			player:GetAttributeChangedSignal("ToolLevel"):Connect(function()
+				PlotService.SyncUpgradeWorkshop(player)
+			end)
+			player:GetAttributeChangedSignal("SpeedLevel"):Connect(function()
+				PlotService.SyncUpgradeWorkshop(player)
 			end)
 
 			player.CharacterAdded:Connect(function(character)
@@ -617,6 +946,7 @@ local function releasePlot(player: Player)
 	plotReleasedEvent:Fire(player, plot)
 	plot:SetAttribute("OwnerUserId", 0)
 	setPlotLabel(plot, "LOTE LIVRE")
+	setWorkshopStatus(plot, 1, 1, false)
 	playerPlots[player] = nil
 	player:SetAttribute("PlotId", nil)
 

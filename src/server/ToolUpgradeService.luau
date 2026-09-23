@@ -27,54 +27,32 @@ local function createButton(player: Player, plot: Model)
 
 	local definition = ToolUpgradeConfig.Get(TARGET_LEVEL)
 	assert(definition and definition.PurchaseCost, "Tool level 2 configuration is missing")
-	local origin = plot:FindFirstChild("Origin")
-	assert(origin and origin:IsA("BasePart"), "Plot origin is missing")
+	local anchorCf = PlotService.GetUpgradeAnchor(player, "ToolUpgradeAnchor")
+	assert(anchorCf, "Tool upgrade workshop anchor is missing")
 
 	local button = Instance.new("Part")
 	button.Name = "ToolUpgradeButton_" .. player.UserId
 	button:SetAttribute("OwnerUserId", player.UserId)
 	button:SetAttribute("UpgradeId", "ToolLevel2")
-	button.Size = Vector3.new(7, 1, 7)
-	button.CFrame = origin.CFrame * CFrame.new(14, 0, 14)
+	button.Size = Vector3.new(6.5, 0.45, 5.2)
+	button.CFrame = anchorCf
 	button.Anchored = true
 	button.CanCollide = true
 	button.Material = Enum.Material.DiamondPlate
 	button.Color = Color3.fromRGB(65, 150, 255)
 	button.Parent = plot
 
-	local signBoard = Instance.new("Part")
-	signBoard.Name = "UpgradeSign"
-	signBoard.Size = Vector3.new(8, 4, 0.5)
-	signBoard.CFrame = button.CFrame * CFrame.new(0, 3.2, -3.2)
-	signBoard.Anchored = true
-	signBoard.CanCollide = false
-	signBoard.Material = Enum.Material.DiamondPlate
-	signBoard.Color = Color3.fromRGB(30, 35, 42)
-	signBoard.Parent = button
-
-	for _, x in { -3.4, 3.4 } do
-		local post = Instance.new("Part")
-		post.Name = "SignPost"
-		post.Size = Vector3.new(0.35, 2.7, 0.35)
-		post.CFrame = button.CFrame * CFrame.new(x, 1.35, -3.2)
-		post.Anchored = true
-		post.CanCollide = false
-		post.Material = Enum.Material.Metal
-		post.Color = Color3.fromRGB(38, 42, 46)
-		post.Parent = button
-	end
-
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "UpgradeGui"
-	gui.Face = Enum.NormalId.Front
+	gui.Face = Enum.NormalId.Top
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 	gui.PixelsPerStud = 50
-	gui.Parent = signBoard
+	gui.Parent = button
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = definition.Name .. "\nR$ " .. tostring(definition.PurchaseCost) .. "\n1,5s > 1,2s"
+	label.Text = "COMPRAR CATRACA\nR$ " .. tostring(definition.PurchaseCost) .. "\n1,5s > 1,2s"
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextStrokeTransparency = 0.2
 	label.TextScaled = true
@@ -100,6 +78,7 @@ local function createButton(player: Player, plot: Model)
 		buying = true
 		if EconomyService.TrySpend(player, definition.PurchaseCost :: number) then
 			player:SetAttribute("ToolLevel", TARGET_LEVEL)
+			PlotService.SyncUpgradeWorkshop(player)
 			removeButton(player)
 			return
 		end
