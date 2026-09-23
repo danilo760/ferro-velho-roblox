@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
+local ServerScriptService = game:GetService("ServerScriptService")
+local PartRemovalService = require(ServerScriptService.Server.PartRemovalService)
 local EconomyService = {}
 local SELL_ZONE_POSITION = Vector3.new(14, 0.55, -28)
 local SELL_ZONE_SIZE = Vector3.new(9, 1, 9)
@@ -83,7 +85,7 @@ local function sellCarriedPart(player: Player)
 		local definition = if typeof(partId) == "string" then PartsCatalog[partId] else nil
 		if definition then
 			money.Value += definition.SellValue
-			player:SetAttribute("CarriedPartId", nil)
+			PartRemovalService.ClearCarriedPart(player)
 			if partId == "Engine" then parkSoldEngineHoist(player) end
 			pulseSellZone()
 			part:Destroy()
