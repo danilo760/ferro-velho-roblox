@@ -3,7 +3,9 @@
 local Players = game:GetService("Players")
 local ServerScriptService = game:GetService("ServerScriptService")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
+local PlotService = require(ServerScriptService.Server.PlotService)
 local TrainingCarBuilder = require(ServerScriptService.Server.TrainingCarBuilder)
 local PartRemovalService = require(ServerScriptService.Server.PartRemovalService)
 local EngineHoistService = require(ServerScriptService.Server.EngineHoistService)
@@ -11,36 +13,26 @@ local EconomyService = require(ServerScriptService.Server.EconomyService)
 local PartRecoveryService = require(ServerScriptService.Server.PartRecoveryService)
 
 local CarLifecycleService = {}
-
 local COMPLETION_BONUS = 225
 local RESPAWN_DELAY = 3
-local EXPECTED_PARTS: {[string]: boolean} = {
-	Engine = true,
-	Battery = true,
-	WheelFrontLeft = true,
-	WheelFrontRight = true,
-	WheelRearLeft = true,
-	WheelRearRight = true,
-	Hood = true,
-	DoorLeft = true,
-	DoorRight = true,
-	Trunk = true,
-	HeadlightLeft = true,
-	HeadlightRight = true,
-}
 local TOTAL_PARTS = 12
+local EXPECTED_PARTS: {[string]: boolean} = {
+	Engine = true, Battery = true, WheelFrontLeft = true, WheelFrontRight = true,
+	WheelRearLeft = true, WheelRearRight = true, Hood = true, DoorLeft = true,
+	DoorRight = true, Trunk = true, HeadlightLeft = true, HeadlightRight = true,
+}
 
 type CarSession = {
 	SessionId: number,
+	OwnerUserId: number,
+	Plot: Model,
 	Model: Model,
-	OwnerUserId: number?,
-	LastSellerUserId: number?,
 	SoldParts: {[string]: boolean},
 	SoldCount: number,
 	IsCompleted: boolean,
 }
 
-local currentSession: CarSession? = nil
+local sessions: {[number]: CarSession} = {}
 local sessionCounter = 0
 
 local function disableInteractions(model: Model)
@@ -49,7 +41,7 @@ local function disableInteractions(model: Model)
 	end
 end
 
-local function animateCleanup(model: Model)
+local function cleanupCar(model: Model)
 	disableInteractions(model)
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -64,15 +56,13 @@ local function animateCleanup(model: Model)
 	if model.Parent then model:Destroy() end
 end
 
-local spawnNextCar: () -> ()
+local spawnForPlayer: (Player, Model) -> ()
 
 local function completeSession(session: CarSession)
 	if session.IsCompleted then return end
 	session.IsCompleted = true
 	session.Model:SetAttribute("CarCompleted", true)
-
-	local rewardUserId = session.OwnerUserId or session.LastSellerUserId
-	local player = if rewardUserId then Players:GetPlayerByUserId(rewardUserId) else nil
+	local player = Players:GetPlayerByUserId(session.OwnerUserId)
 	if player then
 		EconomyService.AwardBonus(player, COMPLETION_BONUS)
 		EconomyService.IncrementCars(player)
@@ -80,54 +70,78 @@ local function completeSession(session: CarSession)
 		local serial = player:GetAttribute("CarCompletionSerial")
 		player:SetAttribute("CarCompletionSerial", if typeof(serial) == "number" then serial + 1 else 1)
 	end
-
-	EngineHoistService.ResetForCycle()
-	animateCleanup(session.Model)
+	EngineHoistService.ResetForCycle(session.OwnerUserId)
+	cleanupCar(session.Model)
 	task.wait(RESPAWN_DELAY)
-	if currentSession == session then spawnNextCar() end
+	if player and sessions[session.OwnerUserId] == session and session.Plot:GetAttribute("OwnerUserId") == session.OwnerUserId then
+		spawnForPlayer(player, session.Plot)
+	end
 end
 
-spawnNextCar = function()
-	sessionCounter += 1
-	local car = TrainingCarBuilder.create()
-	car:SetAttribute("CarSessionId", sessionCounter)
-	car:SetAttribute("CarCompleted", false)
-	car.Parent = workspace
+spawnForPlayer = function(player: Player, plot: Model)
+	local oldSession = sessions[player.UserId]
+	if oldSession and oldSession.Model.Parent then oldSession.Model:Destroy() end
+	EngineHoistService.RemoveForOwner(player.UserId)
+	EconomyService.RemoveSellZone(player.UserId)
 
-	PartRemovalService.setupCar(car)
-	EngineHoistService.start(car)
+	local originPart = plot:FindFirstChild("Origin")
+	assert(originPart and originPart:IsA("BasePart"), "Plot origin is missing")
+	local origin = originPart.CFrame
+	sessionCounter += 1
+	local car = TrainingCarBuilder.create(origin * CFrame.new(0, -0.5, -4), "TrainingCar_" .. player.UserId)
+	car:SetAttribute("CarSessionId", sessionCounter)
+	car:SetAttribute("OwnerUserId", player.UserId)
+	car:SetAttribute("CarCompleted", false)
+	car:SetAttribute("SoldPartsCount", 0)
+	car.Parent = Workspace
+
+	PartRemovalService.setupCar(car, player.UserId)
+	EngineHoistService.start(car, origin * CFrame.new(-15, 0.5, -15), player.UserId)
+	EconomyService.CreateSellZone(player.UserId, origin * CFrame.new(16, 0, 0))
 	PartRecoveryService.start(car)
 
-	currentSession = {
+	sessions[player.UserId] = {
 		SessionId = sessionCounter,
+		OwnerUserId = player.UserId,
+		Plot = plot,
 		Model = car,
-		OwnerUserId = nil,
-		LastSellerUserId = nil,
 		SoldParts = {},
 		SoldCount = 0,
 		IsCompleted = false,
 	}
 end
 
+local function removeForPlayer(player: Player)
+	local session = sessions[player.UserId]
+	if session and session.Model.Parent then session.Model:Destroy() end
+	sessions[player.UserId] = nil
+	EngineHoistService.RemoveForOwner(player.UserId)
+	EconomyService.RemoveSellZone(player.UserId)
+end
+
 function CarLifecycleService.start()
+	for _, legacyName in { "TrainingCar01", "EngineHoist01", "SellZone" } do
+		local legacy = Workspace:FindFirstChild(legacyName)
+		if legacy then legacy:Destroy() end
+	end
+
 	EconomyService.OnPartSold:Connect(function(player: Player, car: Model?, sessionId: any, partId: any, _value: number)
-		local session = currentSession
+		local session = sessions[player.UserId]
 		if not session or session.IsCompleted then return end
 		if car ~= session.Model or sessionId ~= session.SessionId then return end
 		if typeof(partId) ~= "string" or not EXPECTED_PARTS[partId] or session.SoldParts[partId] then return end
-
-		session.OwnerUserId = session.OwnerUserId or player.UserId
-		session.LastSellerUserId = player.UserId
 		session.SoldParts[partId] = true
 		session.SoldCount += 1
 		session.Model:SetAttribute("SoldPartsCount", session.SoldCount)
-
-		if session.SoldCount == TOTAL_PARTS then
-			task.defer(completeSession, session)
-		end
+		if session.SoldCount == TOTAL_PARTS then task.defer(completeSession, session) end
 	end)
 
-	spawnNextCar()
+	PlotService.PlotAssigned:Connect(spawnForPlayer)
+	PlotService.PlotReleased:Connect(removeForPlayer)
+	for _, player in Players:GetPlayers() do
+		local plot = PlotService.GetPlot(player)
+		if plot then spawnForPlayer(player, plot) end
+	end
 end
 
 return CarLifecycleService
