@@ -2,7 +2,6 @@
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
 
 local RecyclingCenterService = require(ServerScriptService.Server.RecyclingCenterService)
 local EconomyService = require(ServerScriptService.Server.EconomyService)
@@ -58,8 +57,7 @@ if RunService:IsStudio() then
 		elseif action == "GetMockData" then
 			return PlayerDataService.GetStoredMockData(args)
 		elseif action == "SetMockData" then
-			PlayerDataService.SetStoredMockData(args.UserId, args.Data)
-			return true
+			return PlayerDataService.SetStoredMockData(args.UserId, args.Data)
 		end
 		return nil
 	end
