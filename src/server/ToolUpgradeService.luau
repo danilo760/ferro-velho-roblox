@@ -11,12 +11,7 @@ local ToolUpgradeConfig = require(ReplicatedStorage.Shared.ToolUpgradeConfig)
 local ToolUpgradeService = {}
 local TARGET_LEVEL = 2
 local buttonsByPlayer: {[Player]: Part} = {}
-
-local function initializePlayer(player: Player)
-	if player:GetAttribute("ToolLevel") == nil then
-		player:SetAttribute("ToolLevel", 1)
-	end
-end
+local playerConnections: {[Player]: {RBXScriptConnection}} = {}
 
 local function removeButton(player: Player)
 	local button = buttonsByPlayer[player]
@@ -26,6 +21,7 @@ end
 
 local function createButton(player: Player, plot: Model)
 	removeButton(player)
+	if player:GetAttribute("DataLoaded") ~= true then return end
 	local currentLevel = player:GetAttribute("ToolLevel")
 	if typeof(currentLevel) == "number" and currentLevel >= TARGET_LEVEL then return end
 
@@ -97,9 +93,42 @@ local function createButton(player: Player, plot: Model)
 	buttonsByPlayer[player] = button
 end
 
+local function syncButton(player: Player)
+	local plot = PlotService.GetPlot(player)
+	if plot then
+		createButton(player, plot)
+	else
+		removeButton(player)
+	end
+end
+
+local function initializePlayer(player: Player)
+	if player:GetAttribute("ToolLevel") == nil then
+		player:SetAttribute("ToolLevel", 1)
+	end
+	if playerConnections[player] then return end
+	playerConnections[player] = {
+		player:GetAttributeChangedSignal("DataLoaded"):Connect(function()
+			syncButton(player)
+		end),
+		player:GetAttributeChangedSignal("ToolLevel"):Connect(function()
+			syncButton(player)
+		end),
+	}
+end
+
+local function cleanupPlayer(player: Player)
+	removeButton(player)
+	local connections = playerConnections[player]
+	if connections then
+		for _, connection in connections do connection:Disconnect() end
+	end
+	playerConnections[player] = nil
+end
+
 function ToolUpgradeService.start()
 	Players.PlayerAdded:Connect(initializePlayer)
-	Players.PlayerRemoving:Connect(removeButton)
+	Players.PlayerRemoving:Connect(cleanupPlayer)
 	for _, player in Players:GetPlayers() do initializePlayer(player) end
 
 	PlotService.PlotAssigned:Connect(createButton)
