@@ -66,6 +66,7 @@ local function pulse(zone: Part)
 end
 
 local function sellCarriedPart(player: Player, zone: Part)
+	if player:GetAttribute("DataLoaded") ~= true then return end
 	if touchDebounce[player] or zone:GetAttribute("OwnerUserId") ~= player.UserId then return end
 	touchDebounce[player] = true
 	local part = findCarriedPart(player)
