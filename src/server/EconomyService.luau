@@ -2,25 +2,20 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
-local ServerScriptService = game:GetService("ServerScriptService")
 local PartRemovalService = require(ServerScriptService.Server.PartRemovalService)
+local EngineHoistService = require(ServerScriptService.Server.EngineHoistService)
+
 local EconomyService = {}
 local partSoldEvent = Instance.new("BindableEvent")
 EconomyService.OnPartSold = partSoldEvent.Event
-local SELL_ZONE_POSITION = Vector3.new(14, 0.55, -28)
-local SELL_ZONE_SIZE = Vector3.new(9, 1, 9)
-local SELL_COLOR = Color3.fromRGB(50, 210, 105)
+local zonesByOwner: {[number]: Part} = {}
 local touchDebounce: {[Player]: boolean} = {}
-local sellZoneReference: Part? = nil
-
-local function getMoney(player: Player): IntValue?
-	local leaderstats = player:FindFirstChild("leaderstats")
-	local money = leaderstats and leaderstats:FindFirstChild("Dinheiro")
-	return if money and money:IsA("IntValue") then money else nil
-end
+local SELL_COLOR = Color3.fromRGB(50, 210, 105)
 
 local function setupPlayer(player: Player)
 	if player:FindFirstChild("leaderstats") then return end
@@ -29,61 +24,49 @@ local function setupPlayer(player: Player)
 	leaderstats.Parent = player
 	local money = Instance.new("IntValue")
 	money.Name = "Dinheiro"
-	money.Value = 0
 	money.Parent = leaderstats
-
 	local cars = Instance.new("IntValue")
 	cars.Name = "Carros Desmontados"
-	cars.Value = 0
 	cars.Parent = leaderstats
 end
 
+local function getMoney(player: Player): IntValue?
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local money = leaderstats and leaderstats:FindFirstChild("Dinheiro")
+	return if money and money:IsA("IntValue") then money else nil
+end
+
 local function findCarriedPart(player: Player): BasePart?
-	local car = Workspace:FindFirstChild("TrainingCar01")
-	if not car then return nil end
-	for _, descendant in car:GetDescendants() do
-		if descendant:IsA("BasePart") and descendant:GetAttribute("PartState") == "Carried" and descendant:GetAttribute("CarrierUserId") == player.UserId then
+	for _, descendant in Workspace:GetDescendants() do
+		if descendant:IsA("BasePart")
+			and descendant:GetAttribute("PartState") == "Carried"
+			and descendant:GetAttribute("CarrierUserId") == player.UserId
+			and descendant:GetAttribute("OwnerUserId") == player.UserId then
 			return descendant
 		end
 	end
 	return nil
 end
 
-local function pulseSellZone()
-	local zone = sellZoneReference
-	if not zone then return end
+local function findCarModel(part: BasePart): Model?
+	local current: Instance? = part.Parent
+	while current do
+		if current:IsA("Model") and current:GetAttribute("CarSessionId") ~= nil then return current end
+		current = current.Parent
+	end
+	return nil
+end
+
+local function pulse(zone: Part)
 	zone.Color = Color3.fromRGB(225, 255, 120)
 	zone.Transparency = 0
-	local tween = TweenService:Create(zone, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Color = SELL_COLOR,
-		Transparency = 0.2,
-	})
-	tween:Play()
+	TweenService:Create(zone, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Color = SELL_COLOR, Transparency = 0.2,
+	}):Play()
 end
 
-local function parkSoldEngineHoist(player: Player)
-	local hoist = Workspace:FindFirstChild("EngineHoist01")
-	if not hoist or not hoist:IsA("Model") or hoist:GetAttribute("CarrierUserId") ~= player.UserId then return end
-	local base = hoist.PrimaryPart
-	if base then
-		local carryWeld = base:FindFirstChild("CarryWeld")
-		if carryWeld then carryWeld:Destroy() end
-	end
-	for _, descendant in hoist:GetDescendants() do
-		if descendant:IsA("BasePart") then descendant.Anchored = true end
-	end
-	hoist:SetAttribute("State", "Empty")
-	hoist:SetAttribute("CarrierUserId", 0)
-	local prompt = base and base:FindFirstChild("HoistPrompt")
-	if prompt and prompt:IsA("ProximityPrompt") then
-		prompt.ActionText = "Empurrar vazio"
-		prompt.ObjectText = "Guincho de motor"
-		prompt.Enabled = true
-	end
-end
-
-local function sellCarriedPart(player: Player)
-	if touchDebounce[player] then return end
+local function sellCarriedPart(player: Player, zone: Part)
+	if touchDebounce[player] or zone:GetAttribute("OwnerUserId") ~= player.UserId then return end
 	touchDebounce[player] = true
 	local part = findCarriedPart(player)
 	local money = getMoney(player)
@@ -91,12 +74,12 @@ local function sellCarriedPart(player: Player)
 		local partId = part:GetAttribute("PartId")
 		local definition = if typeof(partId) == "string" then PartsCatalog[partId] else nil
 		if definition then
-			local car = part:FindFirstAncestor("TrainingCar01")
-			local sessionId = if car and car:IsA("Model") then car:GetAttribute("CarSessionId") else nil
+			local car = findCarModel(part)
+			local sessionId = car and car:GetAttribute("CarSessionId")
 			money.Value += definition.SellValue
 			PartRemovalService.ClearCarriedPart(player)
-			if partId == "Engine" then parkSoldEngineHoist(player) end
-			pulseSellZone()
+			if partId == "Engine" then EngineHoistService.CompleteEngineSale(player) end
+			pulse(zone)
 			part:SetAttribute("SoldConfirmed", true)
 			partSoldEvent:Fire(player, car, sessionId, partId, definition.SellValue)
 			part:Destroy()
@@ -105,35 +88,33 @@ local function sellCarriedPart(player: Player)
 	task.delay(1, function() touchDebounce[player] = nil end)
 end
 
-local function resolvePlayerFromTouch(hit: BasePart): Player?
+local function resolveTouchPlayer(hit: BasePart, ownerUserId: number): Player?
 	local carrierId = hit:GetAttribute("CarrierUserId")
-	if typeof(carrierId) == "number" and carrierId > 0 then return Players:GetPlayerByUserId(carrierId) end
-	local hoist = hit:FindFirstAncestor("EngineHoist01")
-	if hoist and hoist:IsA("Model") then
-		local hoistCarrierId = hoist:GetAttribute("CarrierUserId")
-		if typeof(hoistCarrierId) == "number" and hoistCarrierId > 0 then return Players:GetPlayerByUserId(hoistCarrierId) end
+	if carrierId == ownerUserId then return Players:GetPlayerByUserId(ownerUserId) end
+	local ancestor = hit.Parent
+	while ancestor do
+		if ancestor:GetAttribute("CarrierUserId") == ownerUserId then return Players:GetPlayerByUserId(ownerUserId) end
+		ancestor = ancestor.Parent
 	end
 	local character = hit:FindFirstAncestorOfClass("Model")
-	return if character then Players:GetPlayerFromCharacter(character) else nil
+	local player = character and Players:GetPlayerFromCharacter(character)
+	return if player and player.UserId == ownerUserId then player else nil
 end
 
-local function createSellZone(): Part
-	local existing = Workspace:FindFirstChild("SellZone")
-	if existing and existing:IsA("Part") then return existing end
+function EconomyService.CreateSellZone(ownerUserId: number, cframe: CFrame): Part
+	EconomyService.RemoveSellZone(ownerUserId)
 	local zone = Instance.new("Part")
-	zone.Name = "SellZone"
-	zone.Size = SELL_ZONE_SIZE
-	zone.Position = SELL_ZONE_POSITION
+	zone.Name = "SellZone_" .. ownerUserId
+	zone:SetAttribute("OwnerUserId", ownerUserId)
+	zone.Size = Vector3.new(9, 1, 9)
+	zone.CFrame = cframe
 	zone.Anchored = true
 	zone.CanCollide = true
 	zone.Material = Enum.Material.Neon
 	zone.Color = SELL_COLOR
 	zone.Transparency = 0.2
-	zone.TopSurface = Enum.SurfaceType.Smooth
-	zone.BottomSurface = Enum.SurfaceType.Smooth
 	zone.Parent = Workspace
 	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "SellLabel"
 	billboard.Size = UDim2.fromOffset(260, 60)
 	billboard.StudsOffset = Vector3.new(0, 3.5, 0)
 	billboard.AlwaysOnTop = true
@@ -142,12 +123,23 @@ local function createSellZone(): Part
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
 	label.Text = "VENDER PEÇAS"
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextStrokeTransparency = 0.25
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBold
 	label.Parent = billboard
+	zone.Touched:Connect(function(hit)
+		local player = resolveTouchPlayer(hit, ownerUserId)
+		if player then sellCarriedPart(player, zone) end
+	end)
+	zonesByOwner[ownerUserId] = zone
 	return zone
+end
+
+function EconomyService.RemoveSellZone(ownerUserId: number)
+	local zone = zonesByOwner[ownerUserId]
+	if zone and zone.Parent then zone:Destroy() end
+	zonesByOwner[ownerUserId] = nil
 end
 
 function EconomyService.AwardBonus(player: Player, amount: number)
@@ -165,12 +157,6 @@ function EconomyService.start()
 	Players.PlayerAdded:Connect(setupPlayer)
 	for _, player in Players:GetPlayers() do setupPlayer(player) end
 	Players.PlayerRemoving:Connect(function(player) touchDebounce[player] = nil end)
-	local sellZone = createSellZone()
-	sellZoneReference = sellZone
-	sellZone.Touched:Connect(function(hit: BasePart)
-		local player = resolvePlayerFromTouch(hit)
-		if player then sellCarriedPart(player) end
-	end)
 end
 
 return EconomyService
