@@ -133,6 +133,23 @@ function EconomyService.CreateSellZone(ownerUserId: number, cframe: CFrame): Par
 		if player then sellCarriedPart(player, zone) end
 	end)
 	zonesByOwner[ownerUserId] = zone
+	task.spawn(function()
+		while zone.Parent and zonesByOwner[ownerUserId] == zone do
+			local player = Players:GetPlayerByUserId(ownerUserId)
+			local character = player and player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if player and root and root:IsA("BasePart") then
+				local localPosition = zone.CFrame:PointToObjectSpace(root.Position)
+				local insideHorizontalArea = math.abs(localPosition.X) <= zone.Size.X / 2 + 1.5
+					and math.abs(localPosition.Z) <= zone.Size.Z / 2 + 1.5
+				local closeVertically = math.abs(localPosition.Y) <= 8
+				if insideHorizontalArea and closeVertically then
+					sellCarriedPart(player, zone)
+				end
+			end
+			task.wait(0.1)
+		end
+	end)
 	return zone
 end
 
