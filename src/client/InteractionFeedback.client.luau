@@ -1,0 +1,108 @@
+--!strict
+
+local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "InteractionFeedback"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local saleSound = Instance.new("Sound")
+saleSound.Name = "SaleSound"
+saleSound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+saleSound.Volume = 0.55
+saleSound.Parent = gui
+
+local activeHighlight: Highlight? = nil
+local rightShoulder: Motor6D? = nil
+local leftShoulder: Motor6D? = nil
+
+local function showMoneyGain(amount: number)
+	if amount <= 0 then return end
+	local label = Instance.new("TextLabel")
+	label.AnchorPoint = Vector2.new(0.5, 0.5)
+	label.Position = UDim2.fromScale(0.5, 0.58)
+	label.Size = UDim2.fromOffset(260, 70)
+	label.BackgroundTransparency = 1
+	label.Text = "+R$ " .. amount
+	label.TextColor3 = Color3.fromRGB(80, 255, 125)
+	label.TextStrokeColor3 = Color3.fromRGB(10, 45, 20)
+	label.TextStrokeTransparency = 0.2
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBlack
+	label.Parent = gui
+	saleSound:Play()
+	TweenService:Create(label, TweenInfo.new(0.75, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.fromScale(0.5, 0.46),
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	}):Play()
+	task.delay(0.8, function() label:Destroy() end)
+end
+
+local function watchMoney()
+	local leaderstats = player:WaitForChild("leaderstats")
+	local money = leaderstats:WaitForChild("Dinheiro") :: IntValue
+	local previous = money.Value
+	money:GetPropertyChangedSignal("Value"):Connect(function()
+		local difference = money.Value - previous
+		previous = money.Value
+		showMoneyGain(difference)
+	end)
+end
+
+local function clearHighlight()
+	if activeHighlight then
+		activeHighlight:Destroy()
+		activeHighlight = nil
+	end
+end
+
+ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
+	clearHighlight()
+	local parent = prompt.Parent
+	if not parent or not (parent:IsA("BasePart") or parent:IsA("Model")) then return end
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "InteractionHighlight"
+	highlight.Adornee = parent
+	highlight.FillColor = Color3.fromRGB(255, 184, 55)
+	highlight.OutlineColor = Color3.fromRGB(255, 245, 210)
+	highlight.FillTransparency = 0.65
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent = parent
+	activeHighlight = highlight
+end)
+
+ProximityPromptService.PromptButtonHoldEnded:Connect(clearHighlight)
+ProximityPromptService.PromptHidden:Connect(clearHighlight)
+
+local function bindCharacter(character: Model)
+	rightShoulder = character:FindFirstChild("RightShoulder", true) :: Motor6D?
+	leftShoulder = character:FindFirstChild("LeftShoulder", true) :: Motor6D?
+end
+
+player.CharacterAdded:Connect(bindCharacter)
+if player.Character then bindCharacter(player.Character) end
+
+RunService:BindToRenderStep("CarryPose", Enum.RenderPriority.Character.Value + 1, function(deltaTime)
+	local carriedPartId = player:GetAttribute("CarriedPartId")
+	local targetRight = CFrame.identity
+	local targetLeft = CFrame.identity
+	if carriedPartId ~= nil then
+		local angle = if carriedPartId == "Engine" then -78 else -58
+		targetRight = CFrame.Angles(math.rad(angle), 0, math.rad(12))
+		targetLeft = CFrame.Angles(math.rad(angle), 0, math.rad(-12))
+	end
+	local alpha = math.clamp(deltaTime * 10, 0, 1)
+	if rightShoulder then rightShoulder.Transform = rightShoulder.Transform:Lerp(targetRight, alpha) end
+	if leftShoulder then leftShoulder.Transform = leftShoulder.Transform:Lerp(targetLeft, alpha) end
+end)
+
+task.spawn(watchMoney)
