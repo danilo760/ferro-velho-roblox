@@ -3,10 +3,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
 local EconomyService = {}
-
 local SELL_ZONE_POSITION = Vector3.new(14, 0.55, -28)
 local SELL_ZONE_SIZE = Vector3.new(9, 1, 9)
 local touchDebounce: {[Player]: boolean} = {}
@@ -54,8 +52,9 @@ local function parkSoldEngineHoist(player: Player)
 	hoist:SetAttribute("CarrierUserId", 0)
 	local prompt = base and base:FindFirstChild("HoistPrompt")
 	if prompt and prompt:IsA("ProximityPrompt") then
-		prompt.ActionText = "Motor vendido"
-		prompt.Enabled = false
+		prompt.ActionText = "Empurrar vazio"
+		prompt.ObjectText = "Guincho de motor"
+		prompt.Enabled = true
 	end
 end
 
@@ -75,6 +74,22 @@ local function sellCarriedPart(player: Player)
 		end
 	end
 	task.delay(1, function() touchDebounce[player] = nil end)
+end
+
+local function resolvePlayerFromTouch(hit: BasePart): Player?
+	local carrierId = hit:GetAttribute("CarrierUserId")
+	if typeof(carrierId) == "number" and carrierId > 0 then
+		return Players:GetPlayerByUserId(carrierId)
+	end
+	local hoist = hit:FindFirstAncestor("EngineHoist01")
+	if hoist and hoist:IsA("Model") then
+		local hoistCarrierId = hoist:GetAttribute("CarrierUserId")
+		if typeof(hoistCarrierId) == "number" and hoistCarrierId > 0 then
+			return Players:GetPlayerByUserId(hoistCarrierId)
+		end
+	end
+	local character = hit:FindFirstAncestorOfClass("Model")
+	return if character then Players:GetPlayerFromCharacter(character) else nil
 end
 
 local function createSellZone(): Part
@@ -116,8 +131,7 @@ function EconomyService.start()
 	Players.PlayerRemoving:Connect(function(player) touchDebounce[player] = nil end)
 	local sellZone = createSellZone()
 	sellZone.Touched:Connect(function(hit: BasePart)
-		local character = hit:FindFirstAncestorOfClass("Model")
-		local player = character and Players:GetPlayerFromCharacter(character)
+		local player = resolvePlayerFromTouch(hit)
 		if player then sellCarriedPart(player) end
 	end)
 end
