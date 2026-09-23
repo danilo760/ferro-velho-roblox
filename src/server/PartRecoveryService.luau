@@ -9,7 +9,7 @@ local PartRecoveryService = {}
 local RECOVERY_HEIGHT = -25
 local CHECK_INTERVAL = 0.5
 
-function PartRecoveryService.start(car: Model)
+function PartRecoveryService.start(car: Model, plotGroundY: number, recoveryOrigin: Vector3)
 	task.spawn(function()
 		while car.Parent do
 			local recoveryIndex = 0
@@ -30,7 +30,7 @@ function PartRecoveryService.start(car: Model)
 					descendant.Anchored = true
 					descendant.CanCollide = true
 					descendant.Massless = false
-					descendant.CFrame = CFrame.new(-10, descendant.Size.Y / 2 + 0.1, -34 + recoveryIndex * 2.5)
+					descendant.CFrame = CFrame.new(\n\t\t\t\t\t\trecoveryOrigin.X - 10,\n\t\t\t\t\t\tplotGroundY + descendant.Size.Y / 2 + 0.1,\n\t\t\t\t\t\trecoveryOrigin.Z - 6 + recoveryIndex * 2.5\n\t\t\t\t\t)
 					descendant:SetAttribute("PartState", "Removed")
 					descendant:SetAttribute("CarrierUserId", 0)
 
