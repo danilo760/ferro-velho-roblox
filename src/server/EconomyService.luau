@@ -8,6 +8,8 @@ local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
 local ServerScriptService = game:GetService("ServerScriptService")
 local PartRemovalService = require(ServerScriptService.Server.PartRemovalService)
 local EconomyService = {}
+local partSoldEvent = Instance.new("BindableEvent")
+EconomyService.OnPartSold = partSoldEvent.Event
 local SELL_ZONE_POSITION = Vector3.new(14, 0.55, -28)
 local SELL_ZONE_SIZE = Vector3.new(9, 1, 9)
 local SELL_COLOR = Color3.fromRGB(50, 210, 105)
@@ -29,6 +31,11 @@ local function setupPlayer(player: Player)
 	money.Name = "Dinheiro"
 	money.Value = 0
 	money.Parent = leaderstats
+
+	local cars = Instance.new("IntValue")
+	cars.Name = "Carros Desmontados"
+	cars.Value = 0
+	cars.Parent = leaderstats
 end
 
 local function findCarriedPart(player: Player): BasePart?
@@ -84,10 +91,14 @@ local function sellCarriedPart(player: Player)
 		local partId = part:GetAttribute("PartId")
 		local definition = if typeof(partId) == "string" then PartsCatalog[partId] else nil
 		if definition then
+			local car = part:FindFirstAncestor("TrainingCar01")
+			local sessionId = if car and car:IsA("Model") then car:GetAttribute("CarSessionId") else nil
 			money.Value += definition.SellValue
 			PartRemovalService.ClearCarriedPart(player)
 			if partId == "Engine" then parkSoldEngineHoist(player) end
 			pulseSellZone()
+			part:SetAttribute("SoldConfirmed", true)
+			partSoldEvent:Fire(player, car, sessionId, partId, definition.SellValue)
 			part:Destroy()
 		end
 	end
@@ -137,6 +148,17 @@ local function createSellZone(): Part
 	label.Font = Enum.Font.GothamBold
 	label.Parent = billboard
 	return zone
+end
+
+function EconomyService.AwardBonus(player: Player, amount: number)
+	local money = getMoney(player)
+	if money then money.Value += amount end
+end
+
+function EconomyService.IncrementCars(player: Player)
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local cars = leaderstats and leaderstats:FindFirstChild("Carros Desmontados")
+	if cars and cars:IsA("IntValue") then cars.Value += 1 end
 end
 
 function EconomyService.start()
