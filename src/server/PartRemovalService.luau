@@ -136,6 +136,7 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 		part:SetAttribute("PartId", definition.Id)
 		part:SetAttribute("PartState", "Installed")
 		part:SetAttribute("CarrierUserId", 0)
+		part:SetAttribute("OwnerUserId", ownerUserId or 0)
 		local interactionPoint = Instance.new("Attachment")
 		interactionPoint.Name = "InteractionPoint"
 		interactionPoint.Position = Vector3.new(0, math.max(part.Size.Y / 2 + 1.2, 1.5), 0)
