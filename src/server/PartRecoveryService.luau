@@ -30,7 +30,11 @@ function PartRecoveryService.start(car: Model, plotGroundY: number, recoveryOrig
 					descendant.Anchored = true
 					descendant.CanCollide = true
 					descendant.Massless = false
-					descendant.CFrame = CFrame.new(\n\t\t\t\t\t\trecoveryOrigin.X - 10,\n\t\t\t\t\t\tplotGroundY + descendant.Size.Y / 2 + 0.1,\n\t\t\t\t\t\trecoveryOrigin.Z - 6 + recoveryIndex * 2.5\n\t\t\t\t\t)
+					descendant.CFrame = CFrame.new(
+						recoveryOrigin.X - 10,
+						plotGroundY + descendant.Size.Y / 2 + 0.1,
+						recoveryOrigin.Z - 6 + recoveryIndex * 2.5
+					)
 					descendant:SetAttribute("PartState", "Removed")
 					descendant:SetAttribute("CarrierUserId", 0)
 
