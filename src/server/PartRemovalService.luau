@@ -46,7 +46,7 @@ local function getDependencies(partId: string): {string}
 	return {}
 end
 
-function PartRemovalService.setupCar(car: Model, ownerUserId: number?)
+function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroundY: number?)
 	local runtimes: {[string]: PartRuntime} = {}
 
 	local function dependenciesRemoved(runtime: PartRuntime): (boolean, string?)
@@ -88,7 +88,7 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?)
 	local function animateRemoved(runtime: PartRuntime)
 		local part = runtime.part
 		local carPosition = car:GetPivot().Position
-		local groundHeight = part.Size.Y / 2 + 0.05
+		local groundHeight = (plotGroundY or 0) + part.Size.Y / 2 + 0.05
 		local row = math.floor((runtime.removalSlot - 1) / 6)
 		local column = (runtime.removalSlot - 1) % 6
 		local targetPosition = Vector3.new(carPosition.X - 8 - row * 4, groundHeight, carPosition.Z - 6 + column * 2.5)
@@ -117,7 +117,9 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?)
 		part.Anchored = true
 		part.CanCollide = true
 		part.Massless = false
-		part.CFrame = CFrame.new(root.Position + root.CFrame.LookVector * 5 + Vector3.new(0, -2.7 + part.Size.Y / 2, 0))
+		local dropPosition = root.Position + root.CFrame.LookVector * 5
+		local dropY = (plotGroundY or 0) + part.Size.Y / 2 + 0.05
+		part.CFrame = CFrame.new(dropPosition.X, dropY, dropPosition.Z)
 		part:SetAttribute("PartState", "Removed")
 		part:SetAttribute("CarrierUserId", 0)
 		part:SetAttribute("OwnerUserId", ownerUserId or 0)
