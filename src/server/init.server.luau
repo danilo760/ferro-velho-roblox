@@ -7,6 +7,8 @@ local TrainingCarBuilder = require(ServerScriptService.Server.TrainingCarBuilder
 local PartRemovalService = require(ServerScriptService.Server.PartRemovalService)
 local EngineHoistService = require(ServerScriptService.Server.EngineHoistService)
 local EconomyService = require(ServerScriptService.Server.EconomyService)
+local PartRecoveryService = require(ServerScriptService.Server.PartRecoveryService)
+local PlayerSafetyService = require(ServerScriptService.Server.PlayerSafetyService)
 
 local existingCar = Workspace:FindFirstChild("TrainingCar01")
 if existingCar then existingCar:Destroy() end
@@ -17,3 +19,5 @@ car.Parent = Workspace
 PartRemovalService.setupCar(car)
 EngineHoistService.start(car)
 EconomyService.start()
+PartRecoveryService.start(car)
+PlayerSafetyService.start()
