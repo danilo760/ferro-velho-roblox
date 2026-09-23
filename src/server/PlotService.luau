@@ -4,6 +4,10 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
 local PlotService = {}
+local plotAssignedEvent = Instance.new("BindableEvent")
+local plotReleasedEvent = Instance.new("BindableEvent")
+PlotService.PlotAssigned = plotAssignedEvent.Event
+PlotService.PlotReleased = plotReleasedEvent.Event
 
 local PLOT_SIZE = Vector3.new(48, 1, 48)
 local PLOT_POSITIONS = {
@@ -117,6 +121,7 @@ local function assignPlot(player: Player)
 				task.defer(teleportToPlot, player, character)
 			end)
 			if player.Character then task.defer(teleportToPlot, player, player.Character) end
+			plotAssignedEvent:Fire(player, plot)
 			return
 		end
 	end
@@ -126,6 +131,7 @@ end
 local function releasePlot(player: Player)
 	local plot = playerPlots[player]
 	if not plot then return end
+	plotReleasedEvent:Fire(player, plot)
 	plot:SetAttribute("OwnerUserId", 0)
 	setPlotLabel(plot, "LOTE LIVRE")
 	playerPlots[player] = nil
