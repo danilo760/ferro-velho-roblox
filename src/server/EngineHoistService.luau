@@ -6,6 +6,8 @@ local Workspace = game:GetService("Workspace")
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
 local EngineHoistService = {}
 local HOIST_HOME = CFrame.new(9, 1, -37)
+local activeHoist: Model? = nil
+local activeEngine: BasePart? = nil
 
 local function createHoistPart(model: Model, name: string, size: Vector3, relativePosition: Vector3, color: Color3): Part
 	local part = Instance.new("Part")
@@ -80,6 +82,8 @@ function EngineHoistService.start(car: Model)
 	assert(engine and engine:IsA("BasePart"), "Training car Engine is missing")
 	local definition = PartsCatalog.Engine
 	local hoist = createHoist()
+	activeHoist = hoist
+	activeEngine = engine
 	local base = hoist.PrimaryPart :: BasePart
 	local hoistPrompt = base:FindFirstChild("HoistPrompt") :: ProximityPrompt
 	engine:SetAttribute("PartId", definition.Id)
@@ -210,6 +214,43 @@ function EngineHoistService.start(car: Model)
 			busy = false
 		end
 	end)
+end
+
+function EngineHoistService.ReleasePlayer(player: Player)
+	local hoist = activeHoist
+	if not hoist or hoist:GetAttribute("CarrierUserId") ~= player.UserId then return end
+	local base = hoist.PrimaryPart
+	if not base then return end
+
+	local carryWeld = base:FindFirstChild("CarryWeld")
+	if carryWeld then carryWeld:Destroy() end
+	for _, descendant in hoist:GetDescendants() do
+		if descendant:IsA("BasePart") then descendant.Anchored = true end
+	end
+	hoist:PivotTo(HOIST_HOME)
+	hoist:SetAttribute("CarrierUserId", 0)
+
+	local engine = activeEngine
+	local prompt = base:FindFirstChild("HoistPrompt")
+	if engine and engine.Parent and engine:GetAttribute("PartState") == "Carried" then
+		engine:SetAttribute("PartState", "OnHoist")
+		engine:SetAttribute("CarrierUserId", 0)
+		hoist:SetAttribute("State", "Loaded")
+		if prompt and prompt:IsA("ProximityPrompt") then
+			prompt.ActionText = "Empurrar"
+			prompt.ObjectText = "Guincho com motor"
+			prompt.Enabled = true
+		end
+	else
+		hoist:SetAttribute("State", "Empty")
+		if prompt and prompt:IsA("ProximityPrompt") then
+			prompt.ActionText = "Empurrar vazio"
+			prompt.ObjectText = "Guincho de motor"
+			prompt.Enabled = true
+		end
+	end
+
+	player:SetAttribute("CarriedPartId", nil)
 end
 
 return EngineHoistService
