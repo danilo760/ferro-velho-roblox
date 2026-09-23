@@ -30,6 +30,7 @@ type CarSession = {
 	Model: Model,
 	SoldParts: {[string]: boolean},
 	SoldCount: number,
+	TotalParts: number?,
 	IsCompleted: boolean,
 }
 
@@ -188,7 +189,8 @@ function CarLifecycleService.start()
 		session.SoldParts[partId] = true
 		session.SoldCount += 1
 		session.Model:SetAttribute("SoldPartsCount", session.SoldCount)
-		if session.SoldCount == TOTAL_PARTS then task.defer(completeSession, session) end
+		local total = session.TotalParts or TOTAL_PARTS
+		if session.SoldCount >= total then task.defer(completeSession, session) end
 	end)
 
 	PlotService.PlotAssigned:Connect(spawnForPlayer)
@@ -204,6 +206,95 @@ function CarLifecycleService.start()
 		local plot = PlotService.GetPlot(player)
 		if plot then spawnForPlayer(player, plot) end
 	end
+end
+
+function CarLifecycleService.GetAvailableBox(player: Player): number?
+	local unlockedBoxes = player:GetAttribute("UnlockedBoxes")
+	local maxUnlocked = if typeof(unlockedBoxes) == "number" then math.clamp(unlockedBoxes, 1, 3) else 1
+	local userSessions = playerSessions[player.UserId]
+	if not userSessions then return 1 end
+
+	-- Prioridade 1: Box totalmente vazio ou com ciclo concluído
+	for b = 1, maxUnlocked do
+		local session = userSessions[b]
+		if not session or session.IsCompleted or not session.Model.Parent then
+			return b
+		end
+	end
+
+	-- Prioridade 2: Box com carro de treinamento padrão intacto (0 peças vendidas)
+	for b = 1, maxUnlocked do
+		local session = userSessions[b]
+		if session and session.SoldCount == 0 and not session.Model.Name:match("^AuctionCar") then
+			return b
+		end
+	end
+
+	return nil
+end
+
+function CarLifecycleService.SpawnAuctionCar(player: Player, boxIndex: number, carOptions: TrainingCarBuilder.CustomCarOptions): Model?
+	local plot = PlotService.GetPlot(player)
+	if not plot then return nil end
+
+	if not playerSessions[player.UserId] then
+		playerSessions[player.UserId] = {}
+	end
+
+	local oldSession = playerSessions[player.UserId][boxIndex]
+	if oldSession and oldSession.Model.Parent then oldSession.Model:Destroy() end
+	EngineHoistService.RemoveForOwner(player.UserId, boxIndex)
+
+	local pad = plot:FindFirstChild("Pad")
+	assert(pad and pad:IsA("BasePart"), "Plot pad is missing")
+	local plotGroundY = pad.Position.Y + pad.Size.Y / 2
+
+	local boxOrigin = PlotService.GetBoxOrigin(player, boxIndex)
+	local hoistOrigin = PlotService.GetBoxHoistOrigin(player, boxIndex)
+
+	if not boxOrigin or not hoistOrigin then
+		local originPart = plot:FindFirstChild("Origin")
+		assert(originPart and originPart:IsA("BasePart"), "Plot origin is missing")
+		local xOffset = if boxIndex == 1 then -15 elseif boxIndex == 2 then 0 else 15
+		boxOrigin = originPart.CFrame * CFrame.new(xOffset, 0, -4)
+		hoistOrigin = originPart.CFrame * CFrame.new(xOffset - 4.5, 0.5, -9)
+	end
+
+	sessionCounter += 1
+	local carName = string.format("AuctionCar_%d_%d", player.UserId, boxIndex)
+	local car = TrainingCarBuilder.create(boxOrigin * CFrame.new(0, -0.5, 0), carName, carOptions)
+	car:SetAttribute("CarSessionId", sessionCounter)
+	car:SetAttribute("OwnerUserId", player.UserId)
+	car:SetAttribute("BoxIndex", boxIndex)
+	car:SetAttribute("CarCompleted", false)
+	car:SetAttribute("SoldPartsCount", 0)
+
+	local partsCount = 0
+	for _, child in car:GetChildren() do
+		if child:IsA("BasePart") and EXPECTED_PARTS[child.Name] then
+			partsCount += 1
+		end
+	end
+	car:SetAttribute("TotalPartsCount", partsCount)
+	car.Parent = Workspace
+
+	PartRemovalService.setupCar(car, player.UserId, plotGroundY)
+	EngineHoistService.start(car, hoistOrigin, player.UserId, boxIndex)
+	PartRecoveryService.start(car, plotGroundY, boxOrigin.Position)
+
+	local session: CarSession = {
+		SessionId = sessionCounter,
+		OwnerUserId = player.UserId,
+		BoxIndex = boxIndex,
+		Plot = plot,
+		Model = car,
+		SoldParts = {},
+		SoldCount = 0,
+		TotalParts = partsCount,
+		IsCompleted = false,
+	}
+	playerSessions[player.UserId][boxIndex] = session
+	return car
 end
 
 return CarLifecycleService

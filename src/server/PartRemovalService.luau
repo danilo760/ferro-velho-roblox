@@ -143,7 +143,9 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 
 	for slot, partId in ENABLED_PARTS do
 		local instance = car:FindFirstChild(partId)
-		assert(instance and instance:IsA("BasePart"), "Training car part is missing: " .. partId)
+		if not instance or not instance:IsA("BasePart") then
+			continue
+		end
 		local part = instance :: BasePart
 		local definition = PartsCatalog[partId]
 		assert(definition, "Part catalog entry is missing: " .. partId)

@@ -68,12 +68,15 @@ local function sellCarriedPart(player: Player, zone: Part)
 		if definition then
 			local car = findCarModel(part)
 			local sessionId = car and car:GetAttribute("CarSessionId")
-			money.Value += definition.SellValue
+			local mult = car and car:GetAttribute("ScrapMultiplier")
+			local multiplier = if typeof(mult) == "number" and mult > 0 then mult else 1
+			local sellValue = math.round(definition.SellValue * multiplier)
+			money.Value += sellValue
 			PartRemovalService.ClearCarriedPart(player)
 			if partId == "Engine" then EngineHoistService.CompleteEngineSale(player) end
 			RecyclingCenterService.PulseDropZone(zone)
 			part:SetAttribute("SoldConfirmed", true)
-			partSoldEvent:Fire(player, car, sessionId, partId, definition.SellValue)
+			partSoldEvent:Fire(player, car, sessionId, partId, sellValue)
 			part:Destroy()
 		end
 	end
