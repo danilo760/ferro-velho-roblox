@@ -2,6 +2,7 @@
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local CarLifecycleService = require(ServerScriptService.Server.CarLifecycleService)
@@ -9,6 +10,9 @@ local CarLifecycleService = require(ServerScriptService.Server.CarLifecycleServi
 local PlayerDataService = {}
 local STORE_NAME = "FerroVelhoPlayerData_v1"
 local AUTOSAVE_INTERVAL = 60
+local DATASTORE_MAX_ATTEMPTS = 3
+local SCHEMA_VERSION = 2
+local USE_STUDIO_MEMORY_MOCK = RunService:IsStudio() and (game.PlaceId == 0 or game.GameId == 0)
 local saving: {[Player]: boolean} = {}
 local studioMockStore: {[string]: any} = {}
 
@@ -31,11 +35,11 @@ local DEFAULT_DATA: PlayerData = {
 	SpeedLevel = 1,
 	UnlockedBoxes = 1,
 	BoxCars = {},
-	SchemaVersion = 1,
+	SchemaVersion = SCHEMA_VERSION,
 }
 
 local function integerInRange(value: any, defaultValue: number, minimum: number, maximum: number): number
-	if typeof(value) ~= "number" or value ~= value then return defaultValue end
+	if typeof(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then return defaultValue end
 	return math.clamp(math.floor(value), minimum, maximum)
 end
 
@@ -49,7 +53,7 @@ local function sanitize(raw: any): PlayerData
 		SpeedLevel = integerInRange(raw.SpeedLevel, 1, 1, 5),
 		UnlockedBoxes = integerInRange(raw.UnlockedBoxes, 1, 1, 3),
 		BoxCars = if typeof(raw.BoxCars) == "table" then raw.BoxCars else {},
-		SchemaVersion = 1,
+		SchemaVersion = SCHEMA_VERSION,
 	}
 end
 
@@ -77,7 +81,7 @@ end
 
 local function applyData(player: Player, data: PlayerData)
 	local money, cars, tickets = waitForStats(player)
-	if not money or not cars then
+	if not money or not cars or not tickets then
 		warn("Leaderstats unavailable while loading data for " .. player.Name)
 		player:SetAttribute("DataLoadFailed", true)
 		return
@@ -102,17 +106,16 @@ local function snapshot(player: Player): PlayerData?
 	local toolLevel = player:GetAttribute("ToolLevel")
 	local speedLevel = player:GetAttribute("SpeedLevel")
 	local unlockedBoxes = player:GetAttribute("UnlockedBoxes")
-	local auctionTickets = player:GetAttribute("AuctionTickets")
-	if not money or not cars or typeof(toolLevel) ~= "number" then return nil end
+	if not money or not cars or not tickets or typeof(toolLevel) ~= "number" then return nil end
 	return sanitize({
 		Cash = money.Value,
 		CarsDismantled = cars.Value,
-		AuctionTickets = if tickets then tickets.Value else (if typeof(auctionTickets) == "number" then auctionTickets else 3),
+		AuctionTickets = tickets.Value,
 		ToolLevel = toolLevel,
 		SpeedLevel = if typeof(speedLevel) == "number" then speedLevel else 1,
 		UnlockedBoxes = if typeof(unlockedBoxes) == "number" then unlockedBoxes else 1,
 		BoxCars = CarLifecycleService.SerializeBoxCars(player),
-		SchemaVersion = 1,
+		SchemaVersion = SCHEMA_VERSION,
 	})
 end
 
@@ -121,8 +124,8 @@ local function loadPlayer(player: Player)
 	player:SetAttribute("DataLoadFailed", false)
 	local key = "Player_" .. player.UserId
 
-	-- Fallback para Studio Play Solo (PlaceId == 0)
-	if game.PlaceId == 0 or game.GameId == 0 then
+	-- Mock apenas para lugares ainda não publicados no Studio. Ele não sobrevive ao encerramento do servidor.
+	if USE_STUDIO_MEMORY_MOCK then
 		player:SetAttribute("DataSessionMode", "StudioMock")
 		local cached = studioMockStore[key]
 		if cached then
@@ -136,10 +139,18 @@ local function loadPlayer(player: Player)
 	end
 
 	player:SetAttribute("DataSessionMode", "Persistent")
-	local success, result = pcall(function()
-		local dataStore = DataStoreService:GetDataStore(STORE_NAME)
-		return dataStore:GetAsync(key)
-	end)
+	local success = false
+	local result: any = nil
+	for attempt = 1, DATASTORE_MAX_ATTEMPTS do
+		success, result = pcall(function()
+			local dataStore = DataStoreService:GetDataStore(STORE_NAME)
+			return dataStore:GetAsync(key)
+		end)
+		if success then break end
+		if attempt < DATASTORE_MAX_ATTEMPTS then
+			task.wait(2 ^ (attempt - 1))
+		end
+	end
 	if not player.Parent then return end
 	if not success then
 		applyData(player, table.clone(DEFAULT_DATA))
@@ -161,19 +172,27 @@ local function savePlayer(player: Player): boolean
 	saving[player] = true
 	local key = "Player_" .. player.UserId
 
-	-- Em Studio Play Solo (PlaceId == 0), persistir no mock em memória
-	if game.PlaceId == 0 or game.GameId == 0 then
+	-- Em lugar não publicado no Studio, manter apenas durante a vida deste servidor de teste.
+	if USE_STUDIO_MEMORY_MOCK then
 		studioMockStore[key] = data
 		saving[player] = nil
 		return true
 	end
 
-	local success, result = pcall(function()
-		local dataStore = DataStoreService:GetDataStore(STORE_NAME)
-		return dataStore:UpdateAsync(key, function(_oldValue)
-			return data
+	local success = false
+	local result: any = nil
+	for attempt = 1, DATASTORE_MAX_ATTEMPTS do
+		success, result = pcall(function()
+			local dataStore = DataStoreService:GetDataStore(STORE_NAME)
+			return dataStore:UpdateAsync(key, function(_oldValue)
+				return data
+			end)
 		end)
-	end)
+		if success then break end
+		if attempt < DATASTORE_MAX_ATTEMPTS then
+			task.wait(2 ^ (attempt - 1))
+		end
+	end
 	saving[player] = nil
 	if not success then
 		warn("Failed to save data for " .. player.Name .. ": " .. tostring(result))

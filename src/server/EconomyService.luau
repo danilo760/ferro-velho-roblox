@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
 
@@ -14,6 +15,10 @@ local EconomyService = {}
 local partSoldEvent = Instance.new("BindableEvent")
 EconomyService.OnPartSold = partSoldEvent.Event
 local touchDebounce: {[Player]: boolean} = {}
+
+local function isFiniteNumber(value: any): boolean
+	return typeof(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
 
 local function setupPlayer(player: Player)
 	if player:FindFirstChild("leaderstats") then return end
@@ -53,7 +58,7 @@ function EconomyService.GetTickets(player: Player): number
 end
 
 function EconomyService.AddTickets(player: Player, amount: number): number
-	if amount <= 0 then return EconomyService.GetTickets(player) end
+	if not isFiniteNumber(amount) or amount <= 0 or amount % 1 ~= 0 then return EconomyService.GetTickets(player) end
 	local tickets = getTickets(player)
 	local current = if tickets then tickets.Value else (player:GetAttribute("AuctionTickets") or 0)
 	local newTotal = current + amount
@@ -63,7 +68,7 @@ function EconomyService.AddTickets(player: Player, amount: number): number
 end
 
 function EconomyService.DeductTickets(player: Player, amount: number): boolean
-	if amount <= 0 then return false end
+	if not isFiniteNumber(amount) or amount <= 0 or amount % 1 ~= 0 then return false end
 	local tickets = getTickets(player)
 	local current = if tickets then tickets.Value else (player:GetAttribute("AuctionTickets") or 0)
 	if current < amount then return false end
@@ -114,7 +119,7 @@ local function sellCarriedPart(player: Player, zone: Part)
 			end
 			local sessionId = (car and car:GetAttribute("CarSessionId")) or part:GetAttribute("CarSessionId")
 			local mult = (car and car:GetAttribute("ScrapMultiplier")) or part:GetAttribute("ScrapMultiplier")
-			local multiplier = if typeof(mult) == "number" and mult > 0 then mult else 1
+			local multiplier = if isFiniteNumber(mult) and mult > 0 then math.clamp(mult, 0.1, 10) else 1
 			local sellValue = math.round(definition.SellValue * multiplier)
 			money.Value += sellValue
 			PartRemovalService.ClearCarriedPart(player)
@@ -179,13 +184,19 @@ end
 function EconomyService.RemoveSellZone(_ownerUserId: number)
 end
 
-function EconomyService.SimulatePartSold(player: Player, car: Model, partId: string, sellValue: number?)
+function EconomyService.SimulatePartSold(player: Player, car: Model, partId: string, sellValue: number?): boolean
+	if not RunService:IsStudio() then return false end
+	if player.Parent ~= Players or not car.Parent then return false end
+	if car:GetAttribute("OwnerUserId") ~= player.UserId then return false end
+	if typeof(partId) ~= "string" or PartsCatalog[partId] == nil then return false end
 	local sessionId = car:GetAttribute("CarSessionId")
+	if typeof(sessionId) ~= "number" then return false end
 	partSoldEvent:Fire(player, car, sessionId, partId, sellValue or 100)
+	return true
 end
 
 function EconomyService.TrySpend(player: Player, amount: number): boolean
-	if amount < 0 then return false end
+	if not isFiniteNumber(amount) or amount < 0 or amount % 1 ~= 0 then return false end
 	local money = getMoney(player)
 	if not money or money.Value < amount then return false end
 	money.Value -= amount
@@ -193,6 +204,7 @@ function EconomyService.TrySpend(player: Player, amount: number): boolean
 end
 
 function EconomyService.AwardBonus(player: Player, amount: number)
+	if not isFiniteNumber(amount) or amount <= 0 or amount % 1 ~= 0 then return end
 	local money = getMoney(player)
 	if money then money.Value += amount end
 end

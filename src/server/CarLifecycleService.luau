@@ -1,6 +1,7 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
@@ -11,6 +12,7 @@ local PartRemovalService = require(ServerScriptService.Server.PartRemovalService
 local EngineHoistService = require(ServerScriptService.Server.EngineHoistService)
 local EconomyService = require(ServerScriptService.Server.EconomyService)
 local PartRecoveryService = require(ServerScriptService.Server.PartRecoveryService)
+local AuctionCatalog = require(ReplicatedStorage.Shared.AuctionCatalog)
 
 local CarLifecycleService = {}
 local COMPLETION_BONUS = 225
@@ -21,6 +23,20 @@ local EXPECTED_PARTS: {[string]: boolean} = {
 	WheelRearLeft = true, WheelRearRight = true, Hood = true, DoorLeft = true,
 	DoorRight = true, Trunk = true, HeadlightLeft = true, HeadlightRight = true,
 }
+local ALLOWED_SAVED_PARTS: {[string]: boolean} = {
+	Chassis = true, Engine = true, Battery = true, WheelFrontLeft = true, WheelFrontRight = true,
+	WheelRearLeft = true, WheelRearRight = true, Hood = true, DoorLeft = true,
+	DoorRight = true, Trunk = true, HeadlightLeft = true, HeadlightRight = true,
+}
+local ALLOWED_CONSERVATION_NAMES: {[string]: boolean} = {
+	Sucateado = true,
+	Danificado = true,
+	Usado = true,
+	Preservado = true,
+	Excelente = true,
+	["Leilão"] = true,
+}
+local MAX_SAVED_MULTIPLIER = 10
 
 export type BoxCarConfig = {
 	ModelId: string,
@@ -53,6 +69,10 @@ local playerSessions: {[number]: {[number]: CarSession}} = {}
 local playerBoxSlots: {[number]: {[number]: BoxCarSlot}} = {}
 local sessionCounter = 0
 
+local function isFiniteNumber(value: any): boolean
+	return typeof(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
+
 local function colorToTable(color: Color3?): {number}?
 	if not color then return nil end
 	return {
@@ -64,19 +84,24 @@ end
 
 local function tableToColor(tab: any): Color3?
 	if typeof(tab) ~= "table" or #tab < 3 then return nil end
-	local r = typeof(tab[1]) == "number" and tab[1] or 0
-	local g = typeof(tab[2]) == "number" and tab[2] or 0
-	local b = typeof(tab[3]) == "number" and tab[3] or 0
+	if not isFiniteNumber(tab[1]) or not isFiniteNumber(tab[2]) or not isFiniteNumber(tab[3]) then return nil end
+	local r = math.clamp(math.round(tab[1]), 0, 255)
+	local g = math.clamp(math.round(tab[2]), 0, 255)
+	local b = math.clamp(math.round(tab[3]), 0, 255)
 	return Color3.fromRGB(r, g, b)
 end
 
 local function serializeConfig(config: BoxCarConfig?): any
 	if not config then return nil end
+	local installedParts: {string}? = nil
+	if config.InstalledParts then
+		installedParts = table.clone(config.InstalledParts)
+	end
 	return {
 		ModelId = config.ModelId,
 		DisplayName = config.DisplayName,
 		ScrapMultiplier = config.ScrapMultiplier,
-		InstalledParts = config.InstalledParts,
+		InstalledParts = installedParts,
 		BodyColor = colorToTable(config.BodyColor),
 		AccentColor = colorToTable(config.AccentColor),
 		ConservationName = config.ConservationName,
@@ -84,27 +109,48 @@ local function serializeConfig(config: BoxCarConfig?): any
 end
 
 local function deserializeConfig(raw: any): BoxCarConfig?
-	if typeof(raw) ~= "table" or typeof(raw.ModelId) ~= "string" or typeof(raw.DisplayName) ~= "string" then
+	if typeof(raw) ~= "table" or typeof(raw.ModelId) ~= "string" then
 		return nil
 	end
-	local mult = typeof(raw.ScrapMultiplier) == "number" and raw.ScrapMultiplier or 1
+	local model = AuctionCatalog.GetModel(raw.ModelId)
+	if not model and raw.ModelId ~= "AuctionCar" then return nil end
+
+	local mult = if isFiniteNumber(raw.ScrapMultiplier)
+		then math.clamp(raw.ScrapMultiplier, 0.1, MAX_SAVED_MULTIPLIER)
+		else 1
 	local parts: {string}? = nil
 	if typeof(raw.InstalledParts) == "table" then
 		parts = {}
+		local seen: {[string]: boolean} = {}
 		for _, p in raw.InstalledParts do
-			if typeof(p) == "string" then
+			if typeof(p) == "string" and ALLOWED_SAVED_PARTS[p] and not seen[p] then
+				seen[p] = true
 				table.insert(parts, p)
 			end
 		end
 	end
+
+	local fallbackName = if model then model.DisplayName else "Carro Adquirido"
+	local displayName = if typeof(raw.DisplayName) == "string" and #raw.DisplayName > 0 and #raw.DisplayName <= 120
+		then raw.DisplayName
+		else fallbackName
+	local conservationName = if typeof(raw.ConservationName) == "string" and ALLOWED_CONSERVATION_NAMES[raw.ConservationName]
+		then raw.ConservationName
+		else nil
+	local bodyColor = tableToColor(raw.BodyColor)
+	local accentColor = tableToColor(raw.AccentColor)
+	if model then
+		bodyColor = bodyColor or model.BaseBodyColor
+		accentColor = accentColor or model.BaseAccentColor
+	end
 	return {
 		ModelId = raw.ModelId,
-		DisplayName = raw.DisplayName,
+		DisplayName = displayName,
 		ScrapMultiplier = mult,
 		InstalledParts = parts,
-		BodyColor = tableToColor(raw.BodyColor),
-		AccentColor = tableToColor(raw.AccentColor),
-		ConservationName = typeof(raw.ConservationName) == "string" and raw.ConservationName or nil,
+		BodyColor = bodyColor,
+		AccentColor = accentColor,
+		ConservationName = conservationName,
 	}
 end
 
@@ -159,14 +205,15 @@ local function completeSession(session: CarSession)
 		player:SetAttribute("CarCompletionSerial", if typeof(serial) == "number" then serial + 1 else 1)
 
 		-- Promover PendingConfig para CurrentConfig se houver carro na fila do Box
-		local userSlots = playerBoxSlots[session.OwnerUserId]
-		local slot = userSlots and userSlots[session.BoxIndex]
-		if slot and slot.PendingConfig then
-			slot.CurrentConfig = slot.PendingConfig
-			slot.PendingConfig = nil
-			player:SetAttribute(string.format("Box_%d_Pending", session.BoxIndex), nil)
-			player:SetAttribute(string.format("Box_%d_Current", session.BoxIndex), slot.CurrentConfig.DisplayName)
-		end
+			local userSlots = playerBoxSlots[session.OwnerUserId]
+			local slot = userSlots and userSlots[session.BoxIndex]
+			if slot and slot.PendingConfig then
+				local promotedConfig = slot.PendingConfig
+				slot.CurrentConfig = promotedConfig
+				slot.PendingConfig = nil
+				player:SetAttribute(string.format("Box_%d_Pending", session.BoxIndex), nil)
+				player:SetAttribute(string.format("Box_%d_Current", session.BoxIndex), promotedConfig.DisplayName)
+			end
 	end
 
 	EngineHoistService.ResetForCycle(session.OwnerUserId, session.BoxIndex)
@@ -335,6 +382,8 @@ function CarLifecycleService.LoadBoxCars(player: Player, savedData: any)
 		local slot = getOrCreateBoxSlot(player.UserId, b)
 		slot.CurrentConfig = nil
 		slot.PendingConfig = nil
+		player:SetAttribute(string.format("Box_%d_Current", b), nil)
+		player:SetAttribute(string.format("Box_%d_Pending", b), nil)
 	end
 
 	if typeof(savedData) == "table" then
@@ -446,6 +495,12 @@ function CarLifecycleService.GetAvailableBox(player: Player): number?
 end
 
 function CarLifecycleService.AssignCarToBox(player: Player, boxIndex: number, config: BoxCarConfig): string
+	if player.Parent ~= Players or boxIndex < 1 or boxIndex > 3 or boxIndex % 1 ~= 0 then
+		return "InvalidRequest"
+	end
+	local normalizedConfig = deserializeConfig(serializeConfig(config))
+	if not normalizedConfig then return "InvalidConfig" end
+
 	local slot = getOrCreateBoxSlot(player.UserId, boxIndex)
 	local session = playerSessions[player.UserId] and playerSessions[player.UserId][boxIndex]
 
@@ -454,14 +509,14 @@ function CarLifecycleService.AssignCarToBox(player: Player, boxIndex: number, co
 		if slot.PendingConfig ~= nil then
 			return "AlreadyPending"
 		end
-		slot.PendingConfig = config
-		player:SetAttribute(string.format("Box_%d_Pending", boxIndex), config.DisplayName)
+		slot.PendingConfig = normalizedConfig
+		player:SetAttribute(string.format("Box_%d_Pending", boxIndex), normalizedConfig.DisplayName)
 		return "QueuedPending"
 	else
-		slot.CurrentConfig = config
+		slot.CurrentConfig = normalizedConfig
 		slot.PendingConfig = nil
 		player:SetAttribute(string.format("Box_%d_Pending", boxIndex), nil)
-		player:SetAttribute(string.format("Box_%d_Current", boxIndex), config.DisplayName)
+		player:SetAttribute(string.format("Box_%d_Current", boxIndex), normalizedConfig.DisplayName)
 		local plot = PlotService.GetPlot(player)
 		if plot then
 			spawnCarForBox(player, plot, boxIndex)

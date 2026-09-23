@@ -3,7 +3,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ProximityPromptService = game:GetService("ProximityPromptService")
-local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -266,7 +265,6 @@ hintLabel.TextSize = 12
 hintLabel.Parent = footer
 
 -- Helpers & Network
-local currentOffers: {CatalogOffer} = {}
 local refreshDeadline = os.time() + 300
 
 local function updateTicketDisplay()
@@ -276,7 +274,7 @@ local function updateTicketDisplay()
 	ticketLabel.Text = string.format("🎟️ %d Tickets", count)
 end
 
-local function renderOfferCard(offer: CatalogOffer)
+local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
 	local card = Instance.new("Frame")
 	card.Name = "Offer_" .. offer.OfferId
 	card.Size = UDim2.fromOffset(180, 315)
@@ -354,7 +352,9 @@ local function renderOfferCard(offer: CatalogOffer)
 	s1.Size = UDim2.new(1, -8, 0, 20)
 	s1.Position = UDim2.fromOffset(4, 4)
 	s1.BackgroundTransparency = 1
-	s1.Text = string.format("⚡ Sucata: %.1fx", offer.ScrapMultiplier)
+	local conservationMultiplier = offer.Conservation.Multiplier
+	local modelMultiplier = if conservationMultiplier > 0 then offer.ScrapMultiplier / conservationMultiplier else offer.ScrapMultiplier
+	s1.Text = string.format("⚡ Final %.1fx (%.1fx × %.1fx)", offer.ScrapMultiplier, modelMultiplier, conservationMultiplier)
 	s1.TextColor3 = Color3.fromRGB(255, 215, 60)
 	s1.Font = Enum.Font.GothamBold
 	s1.TextSize = 12
@@ -422,7 +422,8 @@ local function renderOfferCard(offer: CatalogOffer)
 	buyBtn.MouseButton1Click:Connect(function()
 		if isPurchased then return end
 		local isLoaded = player:GetAttribute("DataLoaded")
-		if isLoaded ~= true then
+		local loadFailed = player:GetAttribute("DataLoadFailed")
+		if isLoaded ~= true or loadFailed == true then
 			feedbackLabel.Text = "Aguarde o carregamento dos seus dados antes de comprar."
 			feedbackLabel.TextColor3 = Color3.fromRGB(255, 120, 60)
 			return
@@ -434,7 +435,16 @@ local function renderOfferCard(offer: CatalogOffer)
 		buyBtn.Text = "Processando..."
 		buyBtn.Active = false
 
-		local success, message = buyRemote:InvokeServer(selectedBoxIndex, offer.OfferId)
+		local callOk, success, message = pcall(function()
+			return buyRemote:InvokeServer(selectedBoxIndex, offer.OfferId)
+		end)
+		if not callOk then
+			feedbackLabel.Text = "Não foi possível concluir a compra. Tente novamente."
+			feedbackLabel.TextColor3 = Color3.fromRGB(255, 100, 90)
+			buyBtn.Active = true
+			buyBtn.Text = "Comprar"
+			return
+		end
 		feedbackLabel.Text = message
 		feedbackLabel.TextColor3 = if success then Color3.fromRGB(80, 255, 140) else Color3.fromRGB(255, 100, 90)
 
@@ -453,7 +463,6 @@ local function renderOfferCard(offer: CatalogOffer)
 end
 
 local function refreshUI(offers: {CatalogOffer}, purchasedOffers: {[string]: boolean}?)
-	currentOffers = offers
 	local purchased = purchasedOffers or {}
 	for _, child in scrollFrame:GetChildren() do
 		if child:IsA("Frame") then child:Destroy() end
@@ -469,10 +478,15 @@ end
 local function fetchCatalog()
 	local getRemote = ReplicatedStorage:FindFirstChild("GetAuctionCatalog")
 	if getRemote and getRemote:IsA("RemoteFunction") then
-		local data = getRemote:InvokeServer()
-		if data and data.Offers then
+		local callOk, data = pcall(function()
+			return getRemote:InvokeServer()
+		end)
+		if callOk and data and data.Offers then
 			refreshDeadline = os.time() + (data.TimeRemaining or 300)
 			refreshUI(data.Offers, data.PurchasedOffers)
+		elseif not callOk then
+			feedbackLabel.Text = "Não foi possível carregar o catálogo. Tente novamente."
+			feedbackLabel.TextColor3 = Color3.fromRGB(255, 100, 90)
 		end
 	end
 end
@@ -593,4 +607,3 @@ task.spawn(function()
 		timerLabel.Text = string.format("🔄 Novas em: %02d:%02d", mins, secs)
 	end
 end)
-
