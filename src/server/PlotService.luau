@@ -225,6 +225,83 @@ local function createPlot(index: number, position: Vector3): Model
 		createBox(boxesFolder, b, position)
 	end
 
+	-- Terminal de Leilão físico no lote
+	local terminalModel = Instance.new("Model")
+	terminalModel.Name = "AuctionTerminal"
+
+	local deskPos = position + Vector3.new(-16, 1.4, 17)
+
+	local desk = Instance.new("Part")
+	desk.Name = "TerminalDesk"
+	desk.Size = Vector3.new(4, 2.8, 2.5)
+	desk.Position = deskPos
+	desk.Anchored = true
+	desk.Material = Enum.Material.Metal
+	desk.Color = Color3.fromRGB(40, 44, 48)
+	desk.Parent = terminalModel
+
+	local monitor = Instance.new("Part")
+	monitor.Name = "TerminalMonitor"
+	monitor.Size = Vector3.new(2.6, 1.8, 0.3)
+	monitor.Position = deskPos + Vector3.new(0, 2.3, 0)
+	monitor.Anchored = true
+	monitor.Material = Enum.Material.SmoothPlastic
+	monitor.Color = Color3.fromRGB(25, 28, 32)
+	monitor.Parent = terminalModel
+
+	local screen = Instance.new("Part")
+	screen.Name = "TerminalScreen"
+	screen.Size = Vector3.new(2.3, 1.5, 0.08)
+	screen.Position = deskPos + Vector3.new(0, 2.3, 0.16)
+	screen.Anchored = true
+	screen.Material = Enum.Material.Neon
+	screen.Color = Color3.fromRGB(35, 140, 240)
+	screen.Parent = terminalModel
+
+	local tScreenGui = Instance.new("SurfaceGui")
+	tScreenGui.Name = "ScreenGui"
+	tScreenGui.Face = Enum.NormalId.Front
+	tScreenGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	tScreenGui.PixelsPerStud = 50
+	tScreenGui.Parent = screen
+
+	local screenFrame = Instance.new("Frame")
+	screenFrame.Size = UDim2.fromScale(1, 1)
+	screenFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 28)
+	screenFrame.Parent = tScreenGui
+
+	local screenTitle = Instance.new("TextLabel")
+	screenTitle.Size = UDim2.new(1, -10, 0.45, 0)
+	screenTitle.Position = UDim2.fromOffset(5, 5)
+	screenTitle.BackgroundTransparency = 1
+	screenTitle.Text = "⚖️ LEILÃO DE SUCATAS"
+	screenTitle.TextColor3 = Color3.fromRGB(255, 215, 60)
+	screenTitle.TextScaled = true
+	screenTitle.Font = Enum.Font.GothamBlack
+	screenTitle.Parent = screenFrame
+
+	local screenSub = Instance.new("TextLabel")
+	screenSub.Size = UDim2.new(1, -10, 0.45, 0)
+	screenSub.Position = UDim2.new(0, 5, 0.5, 0)
+	screenSub.BackgroundTransparency = 1
+	screenSub.Text = "5 OFERTAS / 5 MIN\nPressione [E]"
+	screenSub.TextColor3 = Color3.fromRGB(120, 220, 255)
+	screenSub.TextScaled = true
+	screenSub.Font = Enum.Font.GothamBold
+	screenSub.Parent = screenFrame
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "CatalogPrompt"
+	prompt.ActionText = "Abrir Catálogo de Sucatas"
+	prompt.ObjectText = "Terminal de Leilão"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = desk
+
+	terminalModel.Parent = model
+
 	model.Parent = Workspace
 	return model
 end

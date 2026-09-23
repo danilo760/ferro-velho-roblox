@@ -26,12 +26,51 @@ local function setupPlayer(player: Player)
 	local cars = Instance.new("IntValue")
 	cars.Name = "Carros Desmontados"
 	cars.Parent = leaderstats
+	local tickets = Instance.new("IntValue")
+	tickets.Name = "Tickets"
+	local existingTickets = player:GetAttribute("AuctionTickets")
+	tickets.Value = if typeof(existingTickets) == "number" then existingTickets else 3
+	tickets.Parent = leaderstats
 end
 
 local function getMoney(player: Player): IntValue?
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local money = leaderstats and leaderstats:FindFirstChild("Dinheiro")
 	return if money and money:IsA("IntValue") then money else nil
+end
+
+local function getTickets(player: Player): IntValue?
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local tickets = leaderstats and leaderstats:FindFirstChild("Tickets")
+	return if tickets and tickets:IsA("IntValue") then tickets else nil
+end
+
+function EconomyService.GetTickets(player: Player): number
+	local tickets = getTickets(player)
+	if tickets then return tickets.Value end
+	local attr = player:GetAttribute("AuctionTickets")
+	return if typeof(attr) == "number" then attr else 0
+end
+
+function EconomyService.AddTickets(player: Player, amount: number): number
+	if amount <= 0 then return EconomyService.GetTickets(player) end
+	local tickets = getTickets(player)
+	local current = if tickets then tickets.Value else (player:GetAttribute("AuctionTickets") or 0)
+	local newTotal = current + amount
+	if tickets then tickets.Value = newTotal end
+	player:SetAttribute("AuctionTickets", newTotal)
+	return newTotal
+end
+
+function EconomyService.DeductTickets(player: Player, amount: number): boolean
+	if amount <= 0 then return false end
+	local tickets = getTickets(player)
+	local current = if tickets then tickets.Value else (player:GetAttribute("AuctionTickets") or 0)
+	if current < amount then return false end
+	local newTotal = current - amount
+	if tickets then tickets.Value = newTotal end
+	player:SetAttribute("AuctionTickets", newTotal)
+	return true
 end
 
 local function findCarriedPart(player: Player): BasePart?

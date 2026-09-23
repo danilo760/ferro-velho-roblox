@@ -11,6 +11,7 @@ local saving: {[Player]: boolean} = {}
 type PlayerData = {
 	Cash: number,
 	CarsDismantled: number,
+	AuctionTickets: number,
 	ToolLevel: number,
 	SpeedLevel: number,
 	UnlockedBoxes: number,
@@ -20,6 +21,7 @@ type PlayerData = {
 local DEFAULT_DATA: PlayerData = {
 	Cash = 0,
 	CarsDismantled = 0,
+	AuctionTickets = 3,
 	ToolLevel = 1,
 	SpeedLevel = 1,
 	UnlockedBoxes = 1,
@@ -36,6 +38,7 @@ local function sanitize(raw: any): PlayerData
 	return {
 		Cash = integerInRange(raw.Cash, 0, 0, 2_000_000_000),
 		CarsDismantled = integerInRange(raw.CarsDismantled, 0, 0, 2_000_000_000),
+		AuctionTickets = integerInRange(raw.AuctionTickets, 3, 0, 2_000_000_000),
 		ToolLevel = integerInRange(raw.ToolLevel, 1, 1, 2),
 		SpeedLevel = integerInRange(raw.SpeedLevel, 1, 1, 5),
 		UnlockedBoxes = integerInRange(raw.UnlockedBoxes, 1, 1, 3),
@@ -43,26 +46,30 @@ local function sanitize(raw: any): PlayerData
 	}
 end
 
-local function getStats(player: Player): (IntValue?, IntValue?)
+local function getStats(player: Player): (IntValue?, IntValue?, IntValue?)
 	local leaderstats = player:FindFirstChild("leaderstats")
-	if not leaderstats then return nil, nil end
+	if not leaderstats then return nil, nil, nil end
 	local money = leaderstats:FindFirstChild("Dinheiro")
 	local cars = leaderstats:FindFirstChild("Carros Desmontados")
+	local tickets = leaderstats:FindFirstChild("Tickets")
 	return if money and money:IsA("IntValue") then money else nil,
-		if cars and cars:IsA("IntValue") then cars else nil
+		if cars and cars:IsA("IntValue") then cars else nil,
+		if tickets and tickets:IsA("IntValue") then tickets else nil
 end
 
-local function waitForStats(player: Player): (IntValue?, IntValue?)
+local function waitForStats(player: Player): (IntValue?, IntValue?, IntValue?)
 	local leaderstats = player:WaitForChild("leaderstats", 10)
-	if not leaderstats then return nil, nil end
+	if not leaderstats then return nil, nil, nil end
 	local money = leaderstats:WaitForChild("Dinheiro", 10)
 	local cars = leaderstats:WaitForChild("Carros Desmontados", 10)
+	local tickets = leaderstats:WaitForChild("Tickets", 10)
 	return if money and money:IsA("IntValue") then money else nil,
-		if cars and cars:IsA("IntValue") then cars else nil
+		if cars and cars:IsA("IntValue") then cars else nil,
+		if tickets and tickets:IsA("IntValue") then tickets else nil
 end
 
 local function applyData(player: Player, data: PlayerData)
-	local money, cars = waitForStats(player)
+	local money, cars, tickets = waitForStats(player)
 	if not money or not cars then
 		warn("Leaderstats unavailable while loading data for " .. player.Name)
 		player:SetAttribute("DataLoadFailed", true)
@@ -70,6 +77,8 @@ local function applyData(player: Player, data: PlayerData)
 	end
 	money.Value = data.Cash
 	cars.Value = data.CarsDismantled
+	if tickets then tickets.Value = data.AuctionTickets end
+	player:SetAttribute("AuctionTickets", data.AuctionTickets)
 	player:SetAttribute("ToolLevel", data.ToolLevel)
 	player:SetAttribute("SpeedLevel", data.SpeedLevel)
 	player:SetAttribute("UnlockedBoxes", data.UnlockedBoxes)
@@ -78,14 +87,16 @@ local function applyData(player: Player, data: PlayerData)
 end
 
 local function snapshot(player: Player): PlayerData?
-	local money, cars = getStats(player)
+	local money, cars, tickets = getStats(player)
 	local toolLevel = player:GetAttribute("ToolLevel")
 	local speedLevel = player:GetAttribute("SpeedLevel")
 	local unlockedBoxes = player:GetAttribute("UnlockedBoxes")
+	local auctionTickets = player:GetAttribute("AuctionTickets")
 	if not money or not cars or typeof(toolLevel) ~= "number" then return nil end
 	return sanitize({
 		Cash = money.Value,
 		CarsDismantled = cars.Value,
+		AuctionTickets = if tickets then tickets.Value else (if typeof(auctionTickets) == "number" then auctionTickets else 3),
 		ToolLevel = toolLevel,
 		SpeedLevel = if typeof(speedLevel) == "number" then speedLevel else 1,
 		UnlockedBoxes = if typeof(unlockedBoxes) == "number" then unlockedBoxes else 1,
