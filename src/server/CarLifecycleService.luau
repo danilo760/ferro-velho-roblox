@@ -85,8 +85,11 @@ spawnForPlayer = function(player: Player, plot: Model)
 	EconomyService.RemoveSellZone(player.UserId)
 
 	local originPart = plot:FindFirstChild("Origin")
+	local pad = plot:FindFirstChild("Pad")
 	assert(originPart and originPart:IsA("BasePart"), "Plot origin is missing")
+	assert(pad and pad:IsA("BasePart"), "Plot pad is missing")
 	local origin = originPart.CFrame
+	local plotGroundY = pad.Position.Y + pad.Size.Y / 2
 	sessionCounter += 1
 	local car = TrainingCarBuilder.create(origin * CFrame.new(0, -0.5, -4), "TrainingCar_" .. player.UserId)
 	car:SetAttribute("CarSessionId", sessionCounter)
@@ -95,10 +98,10 @@ spawnForPlayer = function(player: Player, plot: Model)
 	car:SetAttribute("SoldPartsCount", 0)
 	car.Parent = Workspace
 
-	PartRemovalService.setupCar(car, player.UserId)
+	PartRemovalService.setupCar(car, player.UserId, plotGroundY)
 	EngineHoistService.start(car, origin * CFrame.new(-15, 0.5, -15), player.UserId)
 	EconomyService.CreateSellZone(player.UserId, origin * CFrame.new(16, 0, 0))
-	PartRecoveryService.start(car)
+	PartRecoveryService.start(car, plotGroundY, origin.Position)
 
 	sessions[player.UserId] = {
 		SessionId = sessionCounter,
