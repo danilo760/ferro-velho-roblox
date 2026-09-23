@@ -159,6 +159,14 @@ function EconomyService.RemoveSellZone(ownerUserId: number)
 	zonesByOwner[ownerUserId] = nil
 end
 
+function EconomyService.TrySpend(player: Player, amount: number): boolean
+	if amount < 0 then return false end
+	local money = getMoney(player)
+	if not money or money.Value < amount then return false end
+	money.Value -= amount
+	return true
+end
+
 function EconomyService.AwardBonus(player: Player, amount: number)
 	local money = getMoney(player)
 	if money then money.Value += amount end
