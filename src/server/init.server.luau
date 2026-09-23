@@ -15,5 +15,5 @@ end
 local car = TrainingCarBuilder.create()
 car.Parent = Workspace
 
-PartRemovalService.setupHood(car)
+PartRemovalService.setupCar(car)
 EconomyService.start()
