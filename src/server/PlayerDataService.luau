@@ -96,7 +96,7 @@ local function savePlayer(player: Player): boolean
 	saving[player] = true
 	local key = "Player_" .. player.UserId
 	local success, result = pcall(function()
-		return dataStore:UpdateAsync(key, function()
+		return dataStore:UpdateAsync(key, function(_oldValue)
 			return data
 		end)
 	end)
