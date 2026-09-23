@@ -10,8 +10,8 @@ local TrainingCarConfig = {
 	CarId = "TrainingCar01",
 	DisplayName = "Sucata Compacta",
 	Parts = {
-		{ PartId = "Engine", Installed = true, RequiredPartsRemoved = { "Battery" } },
-		{ PartId = "Battery", Installed = true, RequiredPartsRemoved = {} },
+		{ PartId = "Engine", Installed = true, RequiredPartsRemoved = { "Hood", "Battery" } },
+		{ PartId = "Battery", Installed = true, RequiredPartsRemoved = { "Hood" } },
 		{ PartId = "WheelFrontLeft", Installed = true, RequiredPartsRemoved = {} },
 		{ PartId = "WheelFrontRight", Installed = true, RequiredPartsRemoved = {} },
 		{ PartId = "WheelRearLeft", Installed = true, RequiredPartsRemoved = {} },
