@@ -253,4 +253,24 @@ function EngineHoistService.ReleasePlayer(player: Player)
 	player:SetAttribute("CarriedPartId", nil)
 end
 
+function EngineHoistService.ResetForCycle()
+	local hoist = activeHoist
+	if not hoist or not hoist.Parent then return end
+	local base = hoist.PrimaryPart
+	if not base then return end
+	local carryWeld = base:FindFirstChild("CarryWeld")
+	if carryWeld then carryWeld:Destroy() end
+	for _, descendant in hoist:GetDescendants() do
+		if descendant:IsA("BasePart") then descendant.Anchored = true end
+	end
+	hoist:PivotTo(HOIST_HOME)
+	hoist:SetAttribute("State", "Empty")
+	hoist:SetAttribute("CarrierUserId", 0)
+	local prompt = base:FindFirstChild("HoistPrompt")
+	if prompt and prompt:IsA("ProximityPrompt") then
+		prompt.ActionText = "Aguardando próximo motor"
+		prompt.Enabled = false
+	end
+end
+
 return EngineHoistService
