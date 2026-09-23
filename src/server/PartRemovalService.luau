@@ -172,6 +172,7 @@ function PartRemovalService.setupCar(car: Model)
 				local root = getRoot(player)
 				if not root then return end
 				runtime.busy = true
+				local safeCFrame = part.CFrame
 				part.Anchored = false
 				part.CanCollide = false
 				part.Massless = true
@@ -186,7 +187,7 @@ function PartRemovalService.setupCar(car: Model)
 					Part = part,
 					Weld = weld,
 					Prompt = prompt,
-					SafeCFrame = part.CFrame,
+					SafeCFrame = safeCFrame,
 				}
 				part:SetAttribute("PartState", "Carried")
 				part:SetAttribute("CarrierUserId", player.UserId)
