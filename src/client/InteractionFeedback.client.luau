@@ -13,12 +13,6 @@ gui.Name = "InteractionFeedback"
 gui.ResetOnSpawn = false
 gui.Parent = playerGui
 
-local saleSound = Instance.new("Sound")
-saleSound.Name = "SaleSound"
-saleSound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
-saleSound.Volume = 0.55
-saleSound.Parent = gui
-
 local activeHighlight: Highlight? = nil
 local rightShoulder: Motor6D? = nil
 local leftShoulder: Motor6D? = nil
@@ -37,7 +31,6 @@ local function showMoneyGain(amount: number)
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBlack
 	label.Parent = gui
-	pcall(function() saleSound:Play() end)
 	TweenService:Create(label, TweenInfo.new(0.75, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		Position = UDim2.fromScale(0.5, 0.46),
 		TextTransparency = 1,

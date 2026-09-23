@@ -94,7 +94,11 @@ end
 
 local function setAnchored(model: Model, value: boolean)
 	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("BasePart") then descendant.Anchored = value end
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = value
+			descendant.CanCollide = value
+			descendant.Massless = not value
+		end
 	end
 end
 
