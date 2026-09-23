@@ -8,10 +8,12 @@ local PlayerSafetyService = require(ServerScriptService.Server.PlayerSafetyServi
 local PlotService = require(ServerScriptService.Server.PlotService)
 local CarLifecycleService = require(ServerScriptService.Server.CarLifecycleService)
 local ToolUpgradeService = require(ServerScriptService.Server.ToolUpgradeService)
+local RecyclingCenterService = require(ServerScriptService.Server.RecyclingCenterService)
 
 EconomyService.start()
 PlayerDataService.start()
 PlayerSafetyService.start()
 ToolUpgradeService.start()
+RecyclingCenterService.start()
 PlotService.start()
 CarLifecycleService.start()
