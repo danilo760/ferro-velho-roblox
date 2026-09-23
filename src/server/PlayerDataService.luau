@@ -90,6 +90,19 @@ local function loadPlayer(player: Player)
 	applyData(player, sanitize(result))
 end
 
+local function initializePlayer(player: Player)
+	if game.PlaceId == 0 or game.GameId == 0 then
+		player:SetAttribute("DataLoaded", false)
+		player:SetAttribute("DataLoadFailed", false)
+		applyData(player, table.clone(DEFAULT_DATA))
+		player:SetAttribute("DataLoadFailed", true)
+		player:SetAttribute("DataSessionMode", "Temporary")
+		return
+	end
+	player:SetAttribute("DataSessionMode", "Persistent")
+	task.spawn(loadPlayer, player)
+end
+
 local function savePlayer(player: Player): boolean
 	if player:GetAttribute("DataLoaded") ~= true or player:GetAttribute("DataLoadFailed") == true or saving[player] then return false end
 	local data = snapshot(player)
@@ -110,15 +123,13 @@ local function savePlayer(player: Player): boolean
 end
 
 function PlayerDataService.start()
-	Players.PlayerAdded:Connect(function(player)
-		task.spawn(loadPlayer, player)
-	end)
+	Players.PlayerAdded:Connect(initializePlayer)
 	Players.PlayerRemoving:Connect(function(player)
 		savePlayer(player)
 		saving[player] = nil
 	end)
 	for _, player in Players:GetPlayers() do
-		task.spawn(loadPlayer, player)
+		initializePlayer(player)
 	end
 
 	task.spawn(function()
