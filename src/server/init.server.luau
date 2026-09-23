@@ -55,6 +55,11 @@ if RunService:IsStudio() then
 		elseif action == "RefreshCatalog" then
 			AuctionTicketCatalogService.RefreshCatalog()
 			return true
+		elseif action == "GetMockData" then
+			return PlayerDataService.GetStoredMockData(args)
+		elseif action == "SetMockData" then
+			PlayerDataService.SetStoredMockData(args.UserId, args.Data)
+			return true
 		end
 		return nil
 	end
