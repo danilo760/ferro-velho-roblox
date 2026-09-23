@@ -37,7 +37,7 @@ local function showMoneyGain(amount: number)
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBlack
 	label.Parent = gui
-	saleSound:Play()
+	pcall(function() saleSound:Play() end)
 	TweenService:Create(label, TweenInfo.new(0.75, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 		Position = UDim2.fromScale(0.5, 0.46),
 		TextTransparency = 1,
@@ -64,19 +64,30 @@ local function clearHighlight()
 	end
 end
 
+local function getAdornee(prompt: ProximityPrompt): Instance?
+	local current: Instance? = prompt.Parent
+	if current and current:IsA("Attachment") then
+		current = current.Parent
+	end
+	if current and (current:IsA("BasePart") or current:IsA("Model")) then
+		return current
+	end
+	return nil
+end
+
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
 	clearHighlight()
-	local parent = prompt.Parent
-	if not parent or not (parent:IsA("BasePart") or parent:IsA("Model")) then return end
+	local target = getAdornee(prompt)
+	if not target then return end
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "InteractionHighlight"
-	highlight.Adornee = parent
+	highlight.Adornee = target
 	highlight.FillColor = Color3.fromRGB(255, 184, 55)
 	highlight.OutlineColor = Color3.fromRGB(255, 245, 210)
 	highlight.FillTransparency = 0.65
 	highlight.OutlineTransparency = 0
 	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.Parent = parent
+	highlight.Parent = target
 	activeHighlight = highlight
 end)
 

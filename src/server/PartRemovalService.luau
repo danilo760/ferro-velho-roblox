@@ -26,7 +26,10 @@ local ENABLED_PARTS = {
 type PartRuntime = {
 	part: BasePart, prompt: ProximityPrompt, dependencies: {string},
 	removalSlot: number, busy: boolean, carryWeld: WeldConstraint?,
+	triggerHandler: (Player) -> (),
 }
+
+local userRuntimes: {[number]: {[string]: PartRuntime}} = {}
 
 local function getRoot(player: Player): BasePart?
 	local character = player.Character
@@ -49,6 +52,7 @@ end
 
 function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroundY: number?)
 	local runtimes: {[string]: PartRuntime} = {}
+	if ownerUserId then userRuntimes[ownerUserId] = runtimes end
 
 	local function getRemovalSeconds(defaultSeconds: number): number
 		if not ownerUserId then return defaultSeconds end
@@ -160,13 +164,9 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 		prompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton
 		prompt.UIOffset = Vector2.new(0, -12)
 		prompt.Parent = interactionPoint
-		local runtime: PartRuntime = {
-			part = part, prompt = prompt, dependencies = getDependencies(partId),
-			removalSlot = slot, busy = false, carryWeld = nil,
-		}
-		runtimes[partId] = runtime
 
-		prompt.Triggered:Connect(function(player: Player)
+		local runtime: PartRuntime
+		local function handleTrigger(player: Player)
 			if ownerUserId and player.UserId ~= ownerUserId then return end
 			if runtime.busy or not Players:FindFirstChild(player.Name) then return end
 			local state = part:GetAttribute("PartState")
@@ -216,7 +216,22 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 				dropPart(player, runtime)
 				runtime.busy = false
 			end
-		end)
+		end
+
+		runtime = {
+			part = part, prompt = prompt, dependencies = getDependencies(partId),
+			removalSlot = slot, busy = false, carryWeld = nil, triggerHandler = handleTrigger,
+		}
+		runtimes[partId] = runtime
+		prompt.Triggered:Connect(handleTrigger)
+
+		local testTrigger = Instance.new("BindableFunction")
+		testTrigger.Name = "TestTrigger"
+		testTrigger.OnInvoke = function(p: Player)
+			handleTrigger(p)
+			return true
+		end
+		testTrigger.Parent = prompt
 	end
 
 	local owner = if ownerUserId then Players:GetPlayerByUserId(ownerUserId) else nil
@@ -224,9 +239,28 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 		local toolLevelConnection = owner:GetAttributeChangedSignal("ToolLevel"):Connect(refreshAll)
 		car.Destroying:Once(function()
 			toolLevelConnection:Disconnect()
+			if ownerUserId then userRuntimes[ownerUserId] = nil end
 		end)
 	end
 	refreshAll()
+end
+
+function PartRemovalService.TriggerPart(player: Player, partId: string): boolean
+	local runtimes = userRuntimes[player.UserId]
+	local runtime = runtimes and runtimes[partId]
+	if runtime then
+		runtime.triggerHandler(player)
+		return true
+	end
+	return false
+end
+
+function PartRemovalService.GetCarriedPart(player: Player): BasePart?
+	local data = activeCarries[player]
+	if data and data.Part and data.Part.Parent then
+		return data.Part
+	end
+	return nil
 end
 
 function PartRemovalService.ClearCarriedPart(player: Player)

@@ -12,6 +12,8 @@ type PlayerData = {
 	Cash: number,
 	CarsDismantled: number,
 	ToolLevel: number,
+	SpeedLevel: number,
+	UnlockedBoxes: number,
 	SchemaVersion: number,
 }
 
@@ -19,6 +21,8 @@ local DEFAULT_DATA: PlayerData = {
 	Cash = 0,
 	CarsDismantled = 0,
 	ToolLevel = 1,
+	SpeedLevel = 1,
+	UnlockedBoxes = 1,
 	SchemaVersion = 1,
 }
 
@@ -33,6 +37,8 @@ local function sanitize(raw: any): PlayerData
 		Cash = integerInRange(raw.Cash, 0, 0, 2_000_000_000),
 		CarsDismantled = integerInRange(raw.CarsDismantled, 0, 0, 2_000_000_000),
 		ToolLevel = integerInRange(raw.ToolLevel, 1, 1, 2),
+		SpeedLevel = integerInRange(raw.SpeedLevel, 1, 1, 5),
+		UnlockedBoxes = integerInRange(raw.UnlockedBoxes, 1, 1, 3),
 		SchemaVersion = 1,
 	}
 end
@@ -65,6 +71,8 @@ local function applyData(player: Player, data: PlayerData)
 	money.Value = data.Cash
 	cars.Value = data.CarsDismantled
 	player:SetAttribute("ToolLevel", data.ToolLevel)
+	player:SetAttribute("SpeedLevel", data.SpeedLevel)
+	player:SetAttribute("UnlockedBoxes", data.UnlockedBoxes)
 	player:SetAttribute("DataLoadFailed", false)
 	player:SetAttribute("DataLoaded", true)
 end
@@ -72,11 +80,15 @@ end
 local function snapshot(player: Player): PlayerData?
 	local money, cars = getStats(player)
 	local toolLevel = player:GetAttribute("ToolLevel")
+	local speedLevel = player:GetAttribute("SpeedLevel")
+	local unlockedBoxes = player:GetAttribute("UnlockedBoxes")
 	if not money or not cars or typeof(toolLevel) ~= "number" then return nil end
 	return sanitize({
 		Cash = money.Value,
 		CarsDismantled = cars.Value,
 		ToolLevel = toolLevel,
+		SpeedLevel = if typeof(speedLevel) == "number" then speedLevel else 1,
+		UnlockedBoxes = if typeof(unlockedBoxes) == "number" then unlockedBoxes else 1,
 		SchemaVersion = 1,
 	})
 end

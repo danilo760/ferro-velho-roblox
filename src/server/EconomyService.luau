@@ -3,19 +3,17 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
-local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
 local PartRemovalService = require(ServerScriptService.Server.PartRemovalService)
 local EngineHoistService = require(ServerScriptService.Server.EngineHoistService)
+local RecyclingCenterService = require(ServerScriptService.Server.RecyclingCenterService)
 
 local EconomyService = {}
 local partSoldEvent = Instance.new("BindableEvent")
 EconomyService.OnPartSold = partSoldEvent.Event
-local zonesByOwner: {[number]: Part} = {}
 local touchDebounce: {[Player]: boolean} = {}
-local SELL_COLOR = Color3.fromRGB(50, 210, 105)
 
 local function setupPlayer(player: Player)
 	if player:FindFirstChild("leaderstats") then return end
@@ -37,13 +35,13 @@ local function getMoney(player: Player): IntValue?
 end
 
 local function findCarriedPart(player: Player): BasePart?
-	for _, descendant in Workspace:GetDescendants() do
-		if descendant:IsA("BasePart")
-			and descendant:GetAttribute("PartState") == "Carried"
-			and descendant:GetAttribute("CarrierUserId") == player.UserId
-			and descendant:GetAttribute("OwnerUserId") == player.UserId then
-			return descendant
-		end
+	local carried = PartRemovalService.GetCarriedPart(player)
+	if carried and carried:GetAttribute("OwnerUserId") == player.UserId then
+		return carried
+	end
+	local engine = EngineHoistService.GetCarriedEngine(player)
+	if engine and engine:GetAttribute("OwnerUserId") == player.UserId then
+		return engine
 	end
 	return nil
 end
@@ -57,17 +55,10 @@ local function findCarModel(part: BasePart): Model?
 	return nil
 end
 
-local function pulse(zone: Part)
-	zone.Color = Color3.fromRGB(225, 255, 120)
-	zone.Transparency = 0
-	TweenService:Create(zone, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Color = SELL_COLOR, Transparency = 0.2,
-	}):Play()
-end
-
 local function sellCarriedPart(player: Player, zone: Part)
 	if player:GetAttribute("DataLoaded") ~= true then return end
-	if touchDebounce[player] or zone:GetAttribute("OwnerUserId") ~= player.UserId then return end
+	local zoneOwner = zone:GetAttribute("OwnerUserId")
+	if touchDebounce[player] or zoneOwner ~= player.UserId then return end
 	touchDebounce[player] = true
 	local part = findCarriedPart(player)
 	local money = getMoney(player)
@@ -80,7 +71,7 @@ local function sellCarriedPart(player: Player, zone: Part)
 			money.Value += definition.SellValue
 			PartRemovalService.ClearCarriedPart(player)
 			if partId == "Engine" then EngineHoistService.CompleteEngineSale(player) end
-			pulse(zone)
+			RecyclingCenterService.PulseDropZone(zone)
 			part:SetAttribute("SoldConfirmed", true)
 			partSoldEvent:Fire(player, car, sessionId, partId, definition.SellValue)
 			part:Destroy()
@@ -102,63 +93,42 @@ local function resolveTouchPlayer(hit: BasePart, ownerUserId: number): Player?
 	return if player and player.UserId == ownerUserId then player else nil
 end
 
-function EconomyService.CreateSellZone(ownerUserId: number, cframe: CFrame): Part
-	EconomyService.RemoveSellZone(ownerUserId)
-	local zone = Instance.new("Part")
-	zone.Name = "SellZone_" .. ownerUserId
-	zone:SetAttribute("OwnerUserId", ownerUserId)
-	zone.Size = Vector3.new(9, 1, 9)
-	zone.CFrame = cframe
-	zone.Anchored = true
-	zone.CanCollide = true
-	zone.Material = Enum.Material.Neon
-	zone.Color = SELL_COLOR
-	zone.Transparency = 0.2
-	zone.Parent = Workspace
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.fromOffset(260, 60)
-	billboard.StudsOffset = Vector3.new(0, 3.5, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = zone
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	local owner = Players:GetPlayerByUserId(ownerUserId)
-	label.Text = "DOCA DE " .. (if owner then owner.DisplayName else tostring(ownerUserId)) .. "\nVENDER PEÇAS"
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.25
-	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-	label.Parent = billboard
+local function registerZoneListeners(zone: Part)
 	zone.Touched:Connect(function(hit)
-		local player = resolveTouchPlayer(hit, ownerUserId)
-		if player then sellCarriedPart(player, zone) end
+		local ownerUserId = zone:GetAttribute("OwnerUserId")
+		if typeof(ownerUserId) == "number" and ownerUserId > 0 then
+			local player = resolveTouchPlayer(hit, ownerUserId)
+			if player then sellCarriedPart(player, zone) end
+		end
 	end)
-	zonesByOwner[ownerUserId] = zone
+
 	task.spawn(function()
-		while zone.Parent and zonesByOwner[ownerUserId] == zone do
-			local player = Players:GetPlayerByUserId(ownerUserId)
-			local character = player and player.Character
-			local root = character and character:FindFirstChild("HumanoidRootPart")
-			if player and root and root:IsA("BasePart") then
-				local localPosition = zone.CFrame:PointToObjectSpace(root.Position)
-				local insideHorizontalArea = math.abs(localPosition.X) <= zone.Size.X / 2 + 1.5
-					and math.abs(localPosition.Z) <= zone.Size.Z / 2 + 1.5
-				local closeVertically = math.abs(localPosition.Y) <= 8
-				if insideHorizontalArea and closeVertically then
-					sellCarriedPart(player, zone)
+		while zone.Parent do
+			local ownerUserId = zone:GetAttribute("OwnerUserId")
+			if typeof(ownerUserId) == "number" and ownerUserId > 0 then
+				local player = Players:GetPlayerByUserId(ownerUserId)
+				local character = player and player.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if player and root and root:IsA("BasePart") then
+					local localPosition = zone.CFrame:PointToObjectSpace(root.Position)
+					local insideHorizontalArea = math.abs(localPosition.X) <= zone.Size.X / 2 + 1.8
+						and math.abs(localPosition.Z) <= zone.Size.Z / 2 + 1.8
+					local closeVertically = math.abs(localPosition.Y) <= 8
+					if insideHorizontalArea and closeVertically then
+						sellCarriedPart(player, zone)
+					end
 				end
 			end
 			task.wait(0.1)
 		end
 	end)
-	return zone
 end
 
-function EconomyService.RemoveSellZone(ownerUserId: number)
-	local zone = zonesByOwner[ownerUserId]
-	if zone and zone.Parent then zone:Destroy() end
-	zonesByOwner[ownerUserId] = nil
+function EconomyService.CreateSellZone(_ownerUserId: number, _cframe: CFrame): Part?
+	return nil
+end
+
+function EconomyService.RemoveSellZone(_ownerUserId: number)
 end
 
 function EconomyService.TrySpend(player: Player, amount: number): boolean
@@ -184,6 +154,11 @@ function EconomyService.start()
 	Players.PlayerAdded:Connect(setupPlayer)
 	for _, player in Players:GetPlayers() do setupPlayer(player) end
 	Players.PlayerRemoving:Connect(function(player) touchDebounce[player] = nil end)
+
+	for _, dock in RecyclingCenterService.GetAllDocks() do
+		registerZoneListeners(dock.PartsDropZone)
+		registerZoneListeners(dock.EngineBayZone)
+	end
 end
 
 return EconomyService
