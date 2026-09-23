@@ -46,7 +46,7 @@ local function getDependencies(partId: string): {string}
 	return {}
 end
 
-function PartRemovalService.setupCar(car: Model)
+function PartRemovalService.setupCar(car: Model, ownerUserId: number?)
 	local runtimes: {[string]: PartRuntime} = {}
 
 	local function dependenciesRemoved(runtime: PartRuntime): (boolean, string?)
@@ -120,6 +120,7 @@ function PartRemovalService.setupCar(car: Model)
 		part.CFrame = CFrame.new(root.Position + root.CFrame.LookVector * 5 + Vector3.new(0, -2.7 + part.Size.Y / 2, 0))
 		part:SetAttribute("PartState", "Removed")
 		part:SetAttribute("CarrierUserId", 0)
+		part:SetAttribute("OwnerUserId", ownerUserId or 0)
 		player:SetAttribute("CarriedPartId", nil)
 		refreshAll()
 	end
@@ -153,6 +154,7 @@ function PartRemovalService.setupCar(car: Model)
 		runtimes[partId] = runtime
 
 		prompt.Triggered:Connect(function(player: Player)
+			if ownerUserId and player.UserId ~= ownerUserId then return end
 			if runtime.busy or not Players:FindFirstChild(player.Name) then return end
 			local state = part:GetAttribute("PartState")
 			if state == "Installed" then
