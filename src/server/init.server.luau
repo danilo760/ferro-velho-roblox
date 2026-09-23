@@ -1,1 +1,14 @@
-print("Hello world, from server!")
+--!strict
+
+local ServerScriptService = game:GetService("ServerScriptService")
+local Workspace = game:GetService("Workspace")
+
+local TrainingCarBuilder = require(ServerScriptService.Server.TrainingCarBuilder)
+
+local existingCar = Workspace:FindFirstChild("TrainingCar01")
+if existingCar then
+	existingCar:Destroy()
+end
+
+local car = TrainingCarBuilder.create()
+car.Parent = Workspace
