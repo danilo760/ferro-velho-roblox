@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
 local TrainingCarConfig = require(ReplicatedStorage.Shared.TrainingCarConfig)
 local ToolUpgradeConfig = require(ReplicatedStorage.Shared.ToolUpgradeConfig)
@@ -109,11 +110,13 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 
 	local function animateRemoved(runtime: PartRuntime)
 		local part = runtime.part
-		local carPosition = car:GetPivot().Position
+		local carPivot = car:GetPivot()
 		local groundHeight = (plotGroundY or 0) + part.Size.Y / 2 + 0.05
 		local row = math.floor((runtime.removalSlot - 1) / 6)
 		local column = (runtime.removalSlot - 1) % 6
-		local targetPosition = Vector3.new(carPosition.X - 8 - row * 4, groundHeight, carPosition.Z - 6 + column * 2.5)
+		local side = if row == 0 then -1 else 1
+		local localTarget = carPivot * CFrame.new(side * 7, 0, -6 + column * 2.5)
+		local targetPosition = Vector3.new(localTarget.Position.X, groundHeight, localTarget.Position.Z)
 		part.Anchored = true
 		part.CanCollide = false
 		part.Massless = false
@@ -123,7 +126,7 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 		local liftTween = TweenService:Create(part, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { CFrame = liftTarget })
 		liftTween:Play()
 		liftTween.Completed:Wait()
-		local dropTarget = CFrame.new(targetPosition) * CFrame.Angles(0, math.rad(8 * runtime.removalSlot), 0)
+		local dropTarget = CFrame.new(targetPosition) * carPivot.Rotation * CFrame.Angles(0, math.rad(8 * runtime.removalSlot), 0)
 		local moveTween = TweenService:Create(part, TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { CFrame = dropTarget })
 		moveTween:Play()
 		moveTween.Completed:Wait()
@@ -133,15 +136,47 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 	local function dropPart(player: Player, runtime: PartRuntime)
 		local root = getRoot(player)
 		if not root then return end
+		local carryData = activeCarries[player]
 		if runtime.carryWeld then runtime.carryWeld:Destroy() runtime.carryWeld = nil end
 		activeCarries[player] = nil
 		local part = runtime.part
 		part.Anchored = true
 		part.CanCollide = true
 		part.Massless = false
-		local dropPosition = root.Position + root.CFrame.LookVector * 5
-		local dropY = (plotGroundY or 0) + part.Size.Y / 2 + 0.05
-		part.CFrame = CFrame.new(dropPosition.X, dropY, dropPosition.Z)
+		local horizontalRadius = math.max(part.Size.X, part.Size.Z) / 2
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+		local character = player.Character
+		raycastParams.FilterDescendantsInstances = if character then { character, part } else { part }
+
+		local function availableDistance(direction: Vector3): number
+			local obstruction = Workspace:Raycast(root.Position, direction * 5, raycastParams)
+			if obstruction and obstruction.Instance.CanCollide then
+				return obstruction.Distance - horizontalRadius - 0.5
+			end
+			return 5
+		end
+
+		local dropDirection = root.CFrame.LookVector
+		local desiredDistance = availableDistance(dropDirection)
+		if desiredDistance < 1.5 then
+			local reverseDirection = -dropDirection
+			local reverseDistance = availableDistance(reverseDirection)
+			if reverseDistance >= 1.5 then
+				dropDirection = reverseDirection
+				desiredDistance = reverseDistance
+			elseif carryData then
+				part.CFrame = carryData.SafeCFrame
+				desiredDistance = 0
+			else
+				desiredDistance = 1.5
+			end
+		end
+		if desiredDistance > 0 then
+			local dropPosition = root.Position + dropDirection * math.min(desiredDistance, 5)
+			local dropY = (plotGroundY or 0) + part.Size.Y / 2 + 0.05
+			part.CFrame = CFrame.new(dropPosition.X, dropY, dropPosition.Z)
+		end
 		part:SetAttribute("PartState", "Removed")
 		part:SetAttribute("CarrierUserId", 0)
 		part:SetAttribute("OwnerUserId", ownerUserId or 0)

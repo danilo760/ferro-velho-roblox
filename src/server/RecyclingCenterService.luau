@@ -28,17 +28,17 @@ local leaderboardLabels: {TextLabel} = {}
 local podiumLabels: {[number]: TextLabel} = {}
 
 local DOCK_OFFSETS = {
-	[1] = Vector3.new(-22, 0.5, -22), -- Voltado para o Lote 1 (-55, -55)
-	[2] = Vector3.new(22, 0.5, -22),  -- Voltado para o Lote 2 (55, -55)
-	[3] = Vector3.new(-22, 0.5, 22),  -- Voltado para o Lote 3 (-55, 55)
-	[4] = Vector3.new(22, 0.5, 22),   -- Voltado para o Lote 4 (55, 55)
+	[1] = Vector3.new(-22, 0.5, -22), -- Voltado para o Lote 1 (-64, -64)
+	[2] = Vector3.new(22, 0.5, -22),  -- Voltado para o Lote 2 (64, -64)
+	[3] = Vector3.new(-22, 0.5, 22),  -- Voltado para o Lote 3 (-64, 64)
+	[4] = Vector3.new(22, 0.5, 22),   -- Voltado para o Lote 4 (64, 64)
 }
 
 local DOCK_TARGETS = {
-	[1] = Vector3.new(-55, 0.5, -55),
-	[2] = Vector3.new(55, 0.5, -55),
-	[3] = Vector3.new(-55, 0.5, 55),
-	[4] = Vector3.new(55, 0.5, 55),
+	[1] = Vector3.new(-64, 0.5, -64),
+	[2] = Vector3.new(64, 0.5, -64),
+	[3] = Vector3.new(-64, 0.5, 64),
+	[4] = Vector3.new(64, 0.5, 64),
 }
 
 local function createPart(parent: Instance, name: string, size: Vector3, cf: CFrame, material: Enum.Material, color: Color3, anchored: boolean, canCollide: boolean): Part

@@ -155,10 +155,10 @@ local function buildYardGround(parent: Model)
 
 	-- Estradas de asfalto rachado conectando a Central aos 4 Lotes
 	local roadTargets = {
-		Vector3.new(-55, 0, -55),
-		Vector3.new(55, 0, -55),
-		Vector3.new(-55, 0, 55),
-		Vector3.new(55, 0, 55),
+		Vector3.new(-64, 0, -64),
+		Vector3.new(64, 0, -64),
+		Vector3.new(-64, 0, 64),
+		Vector3.new(64, 0, 64),
 	}
 	for i, target in roadTargets do
 		local dir = (target - Vector3.new(0, 0, 0))
@@ -510,8 +510,8 @@ local function buildYardArchitecture(parent: Model)
 
 	buildPerimeterFence(architecture)
 	buildIndustrialBuilding(architecture, "Administration", CFrame.new(0, 0, 111), Vector3.new(48, 11, 20), Color3.fromRGB(83, 72, 61), Color3.fromRGB(176, 60, 44), "ADMINISTRACAO E CONTRATOS")
-	buildIndustrialBuilding(architecture, "CrusherHall", CFrame.new(-111, 0, 36) * CFrame.Angles(0, math.rad(90), 0), Vector3.new(42, 15, 20), Color3.fromRGB(66, 70, 72), Color3.fromRGB(204, 151, 32), "PRENSA E TRITURADOR")
-	buildIndustrialBuilding(architecture, "PartsWarehouse", CFrame.new(111, 0, 36) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(42, 13, 20), Color3.fromRGB(65, 78, 72), Color3.fromRGB(44, 129, 95), "GALPAO DE PECAS")
+	buildIndustrialBuilding(architecture, "CrusherHall", CFrame.new(-115, 0, 36) * CFrame.Angles(0, math.rad(90), 0), Vector3.new(42, 15, 20), Color3.fromRGB(66, 70, 72), Color3.fromRGB(204, 151, 32), "PRENSA E TRITURADOR")
+	buildIndustrialBuilding(architecture, "PartsWarehouse", CFrame.new(115, 0, 36) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(42, 13, 20), Color3.fromRGB(65, 78, 72), Color3.fromRGB(44, 129, 95), "GALPAO DE PECAS")
 	buildIndustrialBuilding(architecture, "SecurityOffice", CFrame.new(28, 0, -116), Vector3.new(14, 8, 14), Color3.fromRGB(72, 76, 80), Color3.fromRGB(188, 63, 45), "PORTARIA")
 end
 
@@ -536,8 +536,8 @@ local function buildYardPerimeterAndProps(parent: Model)
 	local scrapPositions = {
 		Vector3.new(-105, 2, -75),
 		Vector3.new(105, 2, -75),
-		Vector3.new(-95, 2, 90),
-		Vector3.new(95, 2, 90),
+		Vector3.new(-108, 2, 98),
+		Vector3.new(108, 2, 98),
 		Vector3.new(-120, 2, -20),
 		Vector3.new(120, 2, -20),
 		Vector3.new(-78, 2, 112),

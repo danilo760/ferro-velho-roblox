@@ -299,7 +299,7 @@ spawnCarForBox = function(player: Player, plot: Model, boxIndex: number)
 
 	PartRemovalService.setupCar(car, player.UserId, plotGroundY)
 	EngineHoistService.start(car, hoistOrigin, player.UserId, boxIndex)
-	PartRecoveryService.start(car, plotGroundY, boxOrigin.Position)
+	PartRecoveryService.start(car, plotGroundY, boxOrigin.CFrame)
 
 	local session: CarSession = {
 		SessionId = sessionCounter,

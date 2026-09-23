@@ -12,15 +12,15 @@ PlotService.PlotAssigned = plotAssignedEvent.Event
 PlotService.PlotReleased = plotReleasedEvent.Event
 PlotService.BoxUnlocked = boxUnlockedEvent.Event
 
-local PLOT_SIZE = Vector3.new(48, 1, 48)
+local PLOT_SIZE = Vector3.new(68, 1, 54)
 local PLOT_POSITIONS = {
-	Vector3.new(-55, 0.5, -55),
-	Vector3.new(55, 0.5, -55),
-	Vector3.new(-55, 0.5, 55),
-	Vector3.new(55, 0.5, 55),
+	Vector3.new(-64, 0.5, -64),
+	Vector3.new(64, 0.5, -64),
+	Vector3.new(-64, 0.5, 64),
+	Vector3.new(64, 0.5, 64),
 }
 
-local BOX_X_OFFSETS = { -15, 0, 15 }
+local BOX_X_OFFSETS = { -22, 0, 22 }
 local BOX_REQUISITES = {
 	[1] = "INICIAL",
 	[2] = "REBIRTH 5 (R$ 500.000)",
@@ -63,7 +63,7 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	-- Piso demarcado do Box (Concreto industrial escurecido)
 	local pad = Instance.new("Part")
 	pad.Name = "BoxPad"
-	pad.Size = Vector3.new(13.5, 0.2, 22)
+	pad.Size = Vector3.new(20.5, 0.2, 24)
 	pad.Position = boxPos
 	pad.Anchored = true
 	pad.Material = Enum.Material.Concrete
@@ -75,8 +75,8 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	-- Faixa zebrada (Hazard Stripes) amarela e preta na entrada do Box
 	local frontHazard = Instance.new("Part")
 	frontHazard.Name = "FrontHazardStripe"
-	frontHazard.Size = Vector3.new(13.5, 0.22, 1.2)
-	frontHazard.Position = boxPos + Vector3.new(0, 0.02, 10.4)
+	frontHazard.Size = Vector3.new(20.5, 0.22, 1.2)
+	frontHazard.Position = boxPos + Vector3.new(0, 0.02, 11.4)
 	frontHazard.Anchored = true
 	frontHazard.Material = Enum.Material.DiamondPlate
 	frontHazard.Color = if boxIndex == 1 then Color3.fromRGB(220, 180, 40) else Color3.fromRGB(180, 50, 45)
@@ -115,11 +115,11 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	hoistOrigin.Parent = boxModel
 
 	-- Colunas industriais de aço nas laterais da baia
-	for _, xSide in { -6.2, 6.2 } do
+	for _, xSide in { -9.3, 9.3 } do
 		local col = Instance.new("Part")
 		col.Name = "BayColumn"
 		col.Size = Vector3.new(0.8, 9.0, 0.8)
-		col.Position = boxPos + Vector3.new(xSide, 4.5, 10.6)
+		col.Position = boxPos + Vector3.new(xSide, 4.5, 11.6)
 		col.Anchored = true
 		col.Material = Enum.Material.DiamondPlate
 		col.Color = Color3.fromRGB(42, 45, 50)
@@ -129,8 +129,8 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	-- Arco / Viga de identificação do Box
 	local arch = Instance.new("Part")
 	arch.Name = "BoxArch"
-	arch.Size = Vector3.new(13.2, 1.8, 0.8)
-	arch.Position = boxPos + Vector3.new(0, 8.1, 10.6)
+	arch.Size = Vector3.new(20.2, 1.8, 0.8)
+	arch.Position = boxPos + Vector3.new(0, 8.1, 11.6)
 	arch.Anchored = true
 	arch.Material = Enum.Material.DiamondPlate
 	arch.Color = Color3.fromRGB(35, 38, 42)
@@ -184,8 +184,8 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	if boxIndex > 1 then
 		local barrier = Instance.new("Part")
 		barrier.Name = "BoxBarrier"
-		barrier.Size = Vector3.new(13.0, 6.8, 0.4)
-		barrier.Position = boxPos + Vector3.new(0, 3.6, 10.6)
+		barrier.Size = Vector3.new(20.0, 6.8, 0.4)
+		barrier.Position = boxPos + Vector3.new(0, 3.6, 11.6)
 		barrier.Anchored = true
 		barrier.CanCollide = true
 		barrier.Material = Enum.Material.DiamondPlate
@@ -196,8 +196,8 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 		-- Faixa central de aviso
 		local warningBar = Instance.new("Part")
 		warningBar.Name = "WarningBar"
-		warningBar.Size = Vector3.new(13.1, 0.8, 0.5)
-		warningBar.Position = boxPos + Vector3.new(0, 3.6, 10.6)
+		warningBar.Size = Vector3.new(20.1, 0.8, 0.5)
+		warningBar.Position = boxPos + Vector3.new(0, 3.6, 11.6)
 		warningBar.Anchored = true
 		warningBar.Material = Enum.Material.Metal
 		warningBar.Color = Color3.fromRGB(210, 160, 30)
@@ -207,7 +207,7 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 		local padlock = Instance.new("Part")
 		padlock.Name = "Padlock"
 		padlock.Size = Vector3.new(1.0, 1.2, 0.6)
-		padlock.Position = boxPos + Vector3.new(0, 3.6, 10.9)
+		padlock.Position = boxPos + Vector3.new(0, 3.6, 11.9)
 		padlock.Anchored = true
 		padlock.Material = Enum.Material.Metal
 		padlock.Color = Color3.fromRGB(190, 150, 45)
