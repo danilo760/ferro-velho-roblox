@@ -3,7 +3,7 @@
 local TrainingCarBuilder = {}
 local DEFAULT_CAR_ORIGIN = Vector3.new(0, 0, -28)
 
-local function createPart(parent: Model, name: string, size: Vector3, localPosition: Vector3, color: Color3, material: Enum.Material?): Part
+local function createPart(parent: Model, originPosition: Vector3, name: string, size: Vector3, localPosition: Vector3, color: Color3, material: Enum.Material?): Part
 	local part = Instance.new("Part")
 	part.Name = name
 	part.Size = size
