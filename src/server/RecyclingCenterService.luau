@@ -56,11 +56,60 @@ local function createPart(parent: Instance, name: string, size: Vector3, cf: CFr
 	return part
 end
 
+local function buildHazardBorder(parent: Instance, prefix: string, surfaceCf: CFrame, sizeX: number, sizeZ: number)
+	local segmentLength = 3
+	local borderWidth = 0.45
+	local borderHeight = 0.08
+	local yellow = Color3.fromRGB(220, 175, 35)
+	local black = Color3.fromRGB(28, 30, 32)
+
+	local function segmentColor(index: number): Color3
+		return if index % 2 == 0 then black else yellow
+	end
+
+	local xCount = math.ceil(sizeX / segmentLength)
+	for index = 1, xCount do
+		local length = math.min(segmentLength, sizeX - (index - 1) * segmentLength)
+		local x = -sizeX / 2 + (index - 1) * segmentLength + length / 2
+		for sideIndex, zSign in { -1, 1 } do
+			createPart(
+				parent,
+				string.format("%s_X_%d_%d", prefix, sideIndex, index),
+				Vector3.new(length, borderHeight, borderWidth),
+				surfaceCf * CFrame.new(x, 0, zSign * (sizeZ - borderWidth) / 2),
+				Enum.Material.SmoothPlastic,
+				segmentColor(index + sideIndex),
+				true,
+				false
+			)
+		end
+	end
+
+	local usableZ = sizeZ - borderWidth * 2
+	local zCount = math.ceil(usableZ / segmentLength)
+	for index = 1, zCount do
+		local length = math.min(segmentLength, usableZ - (index - 1) * segmentLength)
+		local z = -usableZ / 2 + (index - 1) * segmentLength + length / 2
+		for sideIndex, xSign in { -1, 1 } do
+			createPart(
+				parent,
+				string.format("%s_Z_%d_%d", prefix, sideIndex, index),
+				Vector3.new(borderWidth, borderHeight, length),
+				surfaceCf * CFrame.new(xSign * (sizeX - borderWidth) / 2, 0, z),
+				Enum.Material.SmoothPlastic,
+				segmentColor(index + sideIndex),
+				true,
+				false
+			)
+		end
+	end
+end
+
 local function buildCentralHub(parent: Model)
 	local mainFloor = createPart(parent, "CenterFloor", Vector3.new(38, 1, 38), CFrame.new(0, 0.5, 0), Enum.Material.Concrete, Color3.fromRGB(55, 58, 62), true, true)
 
-	-- Borda com faixas zebradas de aviso industrial pintadas no concreto
-	local floorBorderHazard = createPart(parent, "CenterFloorHazard", Vector3.new(38.2, 1.05, 38.2), CFrame.new(0, 0.5, 0), Enum.Material.DiamondPlate, Color3.fromRGB(210, 170, 30), true, false)
+	-- Borda segmentada de segurança sem cobrir o piso central.
+	buildHazardBorder(parent, "CenterHazard", CFrame.new(0, 1.04, 0), 38, 38)
 
 	local pillarPositions = {
 		Vector3.new(-8, 9, -8),
@@ -77,9 +126,13 @@ local function buildCentralHub(parent: Model)
 
 	-- Chaminés industriais duplas com emissão suave de vapor
 	for _, xOff in { -5.0, 5.0 } do
-		local stack = createPart(parent, "Smokestack", Vector3.new(2.4, 6.5, 2.4), CFrame.new(xOff, 22.5, 0), Enum.Material.CorrodedMetal, Color3.fromRGB(45, 48, 52), true, true)
+		local stack = createPart(parent, "Smokestack", Vector3.new(6.5, 2.4, 2.4), CFrame.new(xOff, 22.5, 0), Enum.Material.CorrodedMetal, Color3.fromRGB(45, 48, 52), true, true)
 		stack.Shape = Enum.PartType.Cylinder
 		stack.CFrame = stack.CFrame * CFrame.Angles(0, 0, math.rad(90))
+		local outlet = Instance.new("Attachment")
+		outlet.Name = "SteamOutlet"
+		outlet.Position = Vector3.new(3.25, 0, 0)
+		outlet.Parent = stack
 
 		local smoke = Instance.new("ParticleEmitter")
 		smoke.Name = "IndustrialSteam"
@@ -89,7 +142,7 @@ local function buildCentralHub(parent: Model)
 		smoke.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 4.0) })
 		smoke.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.65), NumberSequenceKeypoint.new(1, 1) })
 		smoke.Color = ColorSequence.new(Color3.fromRGB(190, 185, 180))
-		smoke.Parent = stack
+		smoke.Parent = outlet
 	end
 
 	local signBoard = createPart(parent, "MainSignTower", Vector3.new(15, 3.8, 15), CFrame.new(0, 14.5, 0), Enum.Material.DiamondPlate, Color3.fromRGB(30, 32, 36), true, true)
@@ -282,8 +335,8 @@ local function buildDock(index: number, parent: Model): DockData
 	local dockPad = createPart(dockModel, "DockPad", Vector3.new(16, 1, 14), dockCf, Enum.Material.Concrete, Color3.fromRGB(50, 52, 56), true, true)
 	dockModel.PrimaryPart = dockPad
 
-	-- Borda com faixa zebrada amarela de segurança industrial
-	local hazardBorder = createPart(dockModel, "DockHazardBorder", Vector3.new(16.2, 1.05, 14.2), dockCf, Enum.Material.DiamondPlate, Color3.fromRGB(210, 170, 30), true, false)
+	-- Borda segmentada de segurança sem cobrir o piso da doca.
+	buildHazardBorder(dockModel, "DockHazard", dockCf * CFrame.new(0, 0.54, 0), 16, 14)
 
 	local rampLength = 5
 	local rampCf = dockCf * CFrame.new(0, 0, -8.5)
@@ -488,12 +541,13 @@ end
 
 function RecyclingCenterService.PulseDropZone(zone: Part)
 	local originalColor = zone.Color
+	local originalTransparency = zone.Transparency
 	local highlightColor = Color3.fromRGB(255, 255, 140)
 	zone.Color = highlightColor
 	zone.Transparency = 0
 	local tween = TweenService:Create(zone, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Color = originalColor,
-		Transparency = 0.2,
+		Transparency = originalTransparency,
 	})
 	tween:Play()
 end

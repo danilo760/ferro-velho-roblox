@@ -37,6 +37,20 @@ local function setPlotLabel(plot: Model, text: string)
 	if label and label:IsA("TextLabel") then label.Text = text end
 end
 
+local function setBarrierUnlocked(barrier: BasePart, isUnlocked: boolean)
+	barrier.CanCollide = not isUnlocked
+	barrier.Transparency = if isUnlocked then 1 else 0.2
+
+	for _, child in barrier:GetChildren() do
+		if child:IsA("BasePart") then
+			child.CanCollide = not isUnlocked
+			child.Transparency = if isUnlocked then 1 else 0
+		elseif child:IsA("BillboardGui") then
+			child.Enabled = not isUnlocked
+		end
+	end
+end
+
 local function createBox(plot: Model, boxIndex: number, position: Vector3): Model
 	local boxModel = Instance.new("Model")
 	boxModel.Name = "Box_" .. boxIndex
@@ -455,15 +469,7 @@ function PlotService.SyncBoxes(player: Player)
 
 			local barrier = boxModel:FindFirstChild("BoxBarrier")
 			if barrier and barrier:IsA("BasePart") then
-				barrier.CanCollide = not isUnlocked
-				barrier.Transparency = if isUnlocked then 1 else 0.2
-				for _, ch in barrier:GetChildren() do
-					if ch:IsA("BasePart") then
-						ch.Transparency = if isUnlocked then 1 else 0
-					elseif ch:IsA("BillboardGui") then
-						ch.Enabled = not isUnlocked
-					end
-				end
+				setBarrierUnlocked(barrier, isUnlocked)
 			end
 		end
 	end
@@ -552,19 +558,21 @@ local function releasePlot(player: Player)
 			local boxModel = boxesFolder:FindFirstChild("Box_" .. b)
 			if boxModel and boxModel:IsA("Model") then
 				local isUnlocked = b == 1
+				boxModel:SetAttribute("IsUnlocked", isUnlocked)
+				local frontHazard = boxModel:FindFirstChild("FrontHazardStripe")
+				if frontHazard and frontHazard:IsA("BasePart") then
+					frontHazard.Color = if isUnlocked then Color3.fromRGB(220, 180, 40) else Color3.fromRGB(180, 50, 45)
+				end
 				local arch = boxModel:FindFirstChild("BoxArch")
 				local gui = arch and arch:FindFirstChild("BoxGui")
 				local label = gui and gui:FindFirstChild("BoxLabel")
 				if label and label:IsA("TextLabel") then
 					label.Text = if isUnlocked then "BOX 1  [ATIVO]" else string.format("BOX %d  [BLOQUEADO]", b)
-					label.TextColor3 = if isUnlocked then Color3.fromRGB(100, 255, 140) else Color3.fromRGB(255, 100, 90)
+					label.TextColor3 = if isUnlocked then Color3.fromRGB(240, 200, 60) else Color3.fromRGB(240, 80, 70)
 				end
 				local barrier = boxModel:FindFirstChild("BoxBarrier")
 				if barrier and barrier:IsA("BasePart") then
-					barrier.CanCollide = not isUnlocked
-					barrier.Transparency = if isUnlocked then 1 else 0.55
-					local bb = barrier:FindFirstChild("BarrierInfo")
-					if bb and bb:IsA("BillboardGui") then bb.Enabled = not isUnlocked end
+					setBarrierUnlocked(barrier, isUnlocked)
 				end
 			end
 		end

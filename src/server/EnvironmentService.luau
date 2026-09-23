@@ -166,7 +166,7 @@ local function buildOilDrum(parent: Instance, pos: Vector3, color: Color3, rotat
 	local drum = createPart(
 		drumModel,
 		"DrumBody",
-		Vector3.new(2.4, 3.6, 2.4),
+		Vector3.new(3.6, 2.4, 2.4),
 		CFrame.new(pos) * CFrame.Angles(0, math.rad(rotation or 0), 0),
 		Enum.Material.CorrodedMetal,
 		color,
@@ -180,7 +180,7 @@ local function buildOilDrum(parent: Instance, pos: Vector3, color: Color3, rotat
 	local stripe = createPart(
 		drumModel,
 		"DrumStripe",
-		Vector3.new(2.45, 0.6, 2.45),
+		Vector3.new(0.6, 2.45, 2.45),
 		drum.CFrame,
 		Enum.Material.Metal,
 		Color3.fromRGB(220, 170, 30),

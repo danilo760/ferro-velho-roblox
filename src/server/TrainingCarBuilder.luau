@@ -18,6 +18,18 @@ local function createPart(parent: Model, carCFrame: CFrame, name: string, size: 
 	return part
 end
 
+local function attachDecoration(primary: BasePart, decoration: BasePart, weldName: string)
+	decoration.CanCollide = false
+	decoration.Massless = true
+	decoration.Anchored = false
+	decoration.Parent = primary
+	local weld = Instance.new("WeldConstraint")
+	weld.Name = weldName
+	weld.Part0 = primary
+	weld.Part1 = decoration
+	weld.Parent = decoration
+end
+
 export type CustomCarOptions = {
 	ModelId: string?,
 	BodyColor: Color3?,
@@ -122,14 +134,7 @@ function TrainingCarBuilder.create(originCFrame: CFrame?, carName: string?, opti
 				local side = if position.X < 0 then -1 else 1
 				local rim = createPart(car, carCFrame, wheelName .. "Rim", Vector3.new(0.15, 1.8, 1.8), CFrame.new(position + Vector3.new(0.66 * side, 0, 0)), rimColor, Enum.Material.Metal)
 				rim.Shape = Enum.PartType.Cylinder
-				rim.CanCollide = false
-				rim.Massless = true
-				rim.Anchored = false
-				local rimWeld = Instance.new("WeldConstraint")
-				rimWeld.Name = "RimWeld"
-				rimWeld.Part0 = wheel
-				rimWeld.Part1 = rim
-				rimWeld.Parent = rim
+				attachDecoration(wheel, rim, "RimWeld")
 			end
 		end
 
@@ -166,14 +171,7 @@ function TrainingCarBuilder.create(originCFrame: CFrame?, carName: string?, opti
 			local hoodPart = createPart(car, carCFrame, "Hood", Vector3.new(7.2, 0.30, 4.1), CFrame.new(0, 3.5, -4.8), bodyColor, bodyMaterial)
 			-- Air Scoop no capô (tomada de ar esportiva)
 			local scoop = createPart(car, carCFrame, "HoodScoop", Vector3.new(2.4, 0.45, 2.2), CFrame.new(0, 3.85, -4.5), darkMetal, Enum.Material.Metal)
-			scoop.CanCollide = false
-			scoop.Massless = true
-			scoop.Anchored = false
-			local scoopWeld = Instance.new("WeldConstraint")
-			scoopWeld.Name = "ScoopWeld"
-			scoopWeld.Part0 = hoodPart
-			scoopWeld.Part1 = scoop
-			scoopWeld.Parent = scoop
+			attachDecoration(hoodPart, scoop, "ScoopWeld")
 		end
 		if shouldBuild("DoorLeft") then
 			createPart(car, carCFrame, "DoorLeft", Vector3.new(0.30, 2.30, 4.2), CFrame.new(-3.75, 3.65, 0.2), bodyColor, bodyMaterial)
@@ -204,14 +202,7 @@ function TrainingCarBuilder.create(originCFrame: CFrame?, carName: string?, opti
 				local side = if w.Pos.X < 0 then -1 else 1
 				local rim = createPart(car, carCFrame, w.Name .. "Rim", Vector3.new(0.12, w.Diam * 0.58, w.Diam * 0.58), CFrame.new(w.Pos + Vector3.new((w.Thick * 0.5 + 0.05) * side, 0, 0)), rimColor, Enum.Material.Metal)
 				rim.Shape = Enum.PartType.Cylinder
-				rim.CanCollide = false
-				rim.Massless = true
-				rim.Anchored = false
-				local rimWeld = Instance.new("WeldConstraint")
-				rimWeld.Name = "RimWeld"
-				rimWeld.Part0 = wheel
-				rimWeld.Part1 = rim
-				rimWeld.Parent = rim
+				attachDecoration(wheel, rim, "RimWeld")
 			end
 		end
 
@@ -273,14 +264,7 @@ function TrainingCarBuilder.create(originCFrame: CFrame?, carName: string?, opti
 				local side = if position.X < 0 then -1 else 1
 				local rim = createPart(car, carCFrame, wheelName .. "Rim", Vector3.new(0.12, 1.5, 1.5), CFrame.new(position + Vector3.new(0.56 * side, 0, 0)), rimColor, Enum.Material.Metal)
 				rim.Shape = Enum.PartType.Cylinder
-				rim.CanCollide = false
-				rim.Massless = true
-				rim.Anchored = false
-				local rimWeld = Instance.new("WeldConstraint")
-				rimWeld.Name = "RimWeld"
-				rimWeld.Part0 = wheel
-				rimWeld.Part1 = rim
-				rimWeld.Parent = rim
+				attachDecoration(wheel, rim, "RimWeld")
 			end
 		end
 
@@ -341,14 +325,7 @@ function TrainingCarBuilder.create(originCFrame: CFrame?, carName: string?, opti
 				local side = if position.X < 0 then -1 else 1
 				local rim = createPart(car, carCFrame, wheelName .. "Rim", Vector3.new(0.14, 1.6, 1.6), CFrame.new(position + Vector3.new(0.60 * side, 0, 0)), rimColor, Enum.Material.Metal)
 				rim.Shape = Enum.PartType.Cylinder
-				rim.CanCollide = false
-				rim.Massless = true
-				rim.Anchored = false
-				local rimWeld = Instance.new("WeldConstraint")
-				rimWeld.Name = "RimWeld"
-				rimWeld.Part0 = wheel
-				rimWeld.Part1 = rim
-				rimWeld.Parent = rim
+				attachDecoration(wheel, rim, "RimWeld")
 			end
 		end
 
@@ -358,11 +335,11 @@ function TrainingCarBuilder.create(originCFrame: CFrame?, carName: string?, opti
 		end
 		-- Faróis redondos clássicos dos anos 60
 		if shouldBuild("HeadlightLeft") then
-			local hl = createPart(car, carCFrame, "HeadlightLeft", Vector3.new(0.3, 1.0, 1.0), CFrame.new(-2.3, 3.10, -6.55) * CFrame.Angles(0, 0, math.rad(90)), lightColor, Enum.Material.Glass)
+			local hl = createPart(car, carCFrame, "HeadlightLeft", Vector3.new(0.3, 1.0, 1.0), CFrame.new(-2.3, 3.10, -6.55) * CFrame.Angles(0, math.rad(90), 0), lightColor, Enum.Material.Glass)
 			hl.Shape = Enum.PartType.Cylinder
 		end
 		if shouldBuild("HeadlightRight") then
-			local hr = createPart(car, carCFrame, "HeadlightRight", Vector3.new(0.3, 1.0, 1.0), CFrame.new(2.3, 3.10, -6.55) * CFrame.Angles(0, 0, math.rad(90)), lightColor, Enum.Material.Glass)
+			local hr = createPart(car, carCFrame, "HeadlightRight", Vector3.new(0.3, 1.0, 1.0), CFrame.new(2.3, 3.10, -6.55) * CFrame.Angles(0, math.rad(90), 0), lightColor, Enum.Material.Glass)
 			hr.Shape = Enum.PartType.Cylinder
 		end
 
@@ -408,14 +385,7 @@ function TrainingCarBuilder.create(originCFrame: CFrame?, carName: string?, opti
 				local side = if position.X < 0 then -1 else 1
 				local rim = createPart(car, carCFrame, wheelName .. "Rim", Vector3.new(0.12, 1.55, 1.55), CFrame.new(position + Vector3.new(0.59 * side, 0, 0)), rimColor, Enum.Material.Metal)
 				rim.Shape = Enum.PartType.Cylinder
-				rim.CanCollide = false
-				rim.Massless = true
-				rim.Anchored = false
-				local rimWeld = Instance.new("WeldConstraint")
-				rimWeld.Name = "RimWeld"
-				rimWeld.Part0 = wheel
-				rimWeld.Part1 = rim
-				rimWeld.Parent = rim
+				attachDecoration(wheel, rim, "RimWeld")
 			end
 		end
 
