@@ -5,6 +5,7 @@ local Workspace = game:GetService("Workspace")
 
 local TrainingCarBuilder = require(ServerScriptService.Server.TrainingCarBuilder)
 local PartRemovalService = require(ServerScriptService.Server.PartRemovalService)
+local EconomyService = require(ServerScriptService.Server.EconomyService)
 
 local existingCar = Workspace:FindFirstChild("TrainingCar01")
 if existingCar then
@@ -15,3 +16,4 @@ local car = TrainingCarBuilder.create()
 car.Parent = Workspace
 
 PartRemovalService.setupHood(car)
+EconomyService.start()
