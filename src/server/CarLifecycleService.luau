@@ -501,6 +501,11 @@ function CarLifecycleService.AssignCarToBox(player: Player, boxIndex: number, co
 	local normalizedConfig = deserializeConfig(serializeConfig(config))
 	if not normalizedConfig then return "InvalidConfig" end
 
+	local plot = PlotService.GetPlot(player)
+	if not plot then
+		return "NoPlot"
+	end
+
 	local slot = getOrCreateBoxSlot(player.UserId, boxIndex)
 	local session = playerSessions[player.UserId] and playerSessions[player.UserId][boxIndex]
 
@@ -517,10 +522,7 @@ function CarLifecycleService.AssignCarToBox(player: Player, boxIndex: number, co
 		slot.PendingConfig = nil
 		player:SetAttribute(string.format("Box_%d_Pending", boxIndex), nil)
 		player:SetAttribute(string.format("Box_%d_Current", boxIndex), normalizedConfig.DisplayName)
-		local plot = PlotService.GetPlot(player)
-		if plot then
-			spawnCarForBox(player, plot, boxIndex)
-		end
+		spawnCarForBox(player, plot, boxIndex)
 		return "SpawnedImmediately"
 	end
 end

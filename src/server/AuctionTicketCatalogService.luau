@@ -7,6 +7,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local AuctionCatalog = require(ReplicatedStorage.Shared.AuctionCatalog)
 local EconomyService = require(ServerScriptService.Server.EconomyService)
 local CarLifecycleService = require(ServerScriptService.Server.CarLifecycleService)
+local PlotService = require(ServerScriptService.Server.PlotService)
 
 local AuctionTicketCatalogService = {}
 
@@ -137,6 +138,12 @@ local function processPurchase(player: Player, targetBoxIndex: any, offerId: any
 		return false, string.format("O Box %d já possui %s aguardando na fila pendente. Conclua a desmontagem antes de adquirir outro!", targetBoxIndex, pendingName)
 	end
 
+	-- Trava 4.5: Jogador possui lote ativo atribuído?
+	local plot = PlotService.GetPlot(player)
+	if not plot then
+		return false, "Você ainda não possui um lote atribuído. Aguarde a liberação do seu lote."
+	end
+
 	-- Trava 5: Saldo de Tickets
 	if typeof(targetOffer.TicketCost) ~= "number" or targetOffer.TicketCost <= 0 or targetOffer.TicketCost % 1 ~= 0 then
 		warn("Invalid ticket cost in server catalog for offer " .. offerId)
@@ -182,6 +189,10 @@ local function processPurchase(player: Player, targetBoxIndex: any, offerId: any
 		EconomyService.AddTickets(player, transaction.Charged)
 		transaction.Charged = 0
 		return false, "O Box selecionado já possui um veículo pendente. Tickets estornados."
+	elseif assignResult == "NoPlot" then
+		EconomyService.AddTickets(player, transaction.Charged)
+		transaction.Charged = 0
+		return false, "Você não possui um lote ativo para receber o veículo. Tickets estornados."
 	elseif assignResult == "SpawnedImmediately" then
 		transaction.Charged = 0
 	else
