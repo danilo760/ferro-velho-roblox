@@ -6,7 +6,6 @@ local Players = game:GetService("Players")
 local PlayerDataService = {}
 local STORE_NAME = "FerroVelhoPlayerData_v1"
 local AUTOSAVE_INTERVAL = 60
-local dataStore = DataStoreService:GetDataStore(STORE_NAME)
 local saving: {[Player]: boolean} = {}
 
 type PlayerData = {
@@ -78,6 +77,7 @@ local function loadPlayer(player: Player)
 	player:SetAttribute("DataLoadFailed", false)
 	local key = "Player_" .. player.UserId
 	local success, result = pcall(function()
+		local dataStore = DataStoreService:GetDataStore(STORE_NAME)
 		return dataStore:GetAsync(key)
 	end)
 	if not player.Parent then return end
@@ -97,6 +97,7 @@ local function savePlayer(player: Player): boolean
 	saving[player] = true
 	local key = "Player_" .. player.UserId
 	local success, result = pcall(function()
+		local dataStore = DataStoreService:GetDataStore(STORE_NAME)
 		return dataStore:UpdateAsync(key, function(_oldValue)
 			return data
 		end)
