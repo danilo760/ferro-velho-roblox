@@ -2,12 +2,15 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
 local EconomyService = {}
 local SELL_ZONE_POSITION = Vector3.new(14, 0.55, -28)
 local SELL_ZONE_SIZE = Vector3.new(9, 1, 9)
+local SELL_COLOR = Color3.fromRGB(50, 210, 105)
 local touchDebounce: {[Player]: boolean} = {}
+local sellZoneReference: Part? = nil
 
 local function getMoney(player: Player): IntValue?
 	local leaderstats = player:FindFirstChild("leaderstats")
@@ -35,6 +38,18 @@ local function findCarriedPart(player: Player): BasePart?
 		end
 	end
 	return nil
+end
+
+local function pulseSellZone()
+	local zone = sellZoneReference
+	if not zone then return end
+	zone.Color = Color3.fromRGB(225, 255, 120)
+	zone.Transparency = 0
+	local tween = TweenService:Create(zone, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Color = SELL_COLOR,
+		Transparency = 0.2,
+	})
+	tween:Play()
 end
 
 local function parkSoldEngineHoist(player: Player)
@@ -70,6 +85,7 @@ local function sellCarriedPart(player: Player)
 			money.Value += definition.SellValue
 			player:SetAttribute("CarriedPartId", nil)
 			if partId == "Engine" then parkSoldEngineHoist(player) end
+			pulseSellZone()
 			part:Destroy()
 		end
 	end
@@ -78,15 +94,11 @@ end
 
 local function resolvePlayerFromTouch(hit: BasePart): Player?
 	local carrierId = hit:GetAttribute("CarrierUserId")
-	if typeof(carrierId) == "number" and carrierId > 0 then
-		return Players:GetPlayerByUserId(carrierId)
-	end
+	if typeof(carrierId) == "number" and carrierId > 0 then return Players:GetPlayerByUserId(carrierId) end
 	local hoist = hit:FindFirstAncestor("EngineHoist01")
 	if hoist and hoist:IsA("Model") then
 		local hoistCarrierId = hoist:GetAttribute("CarrierUserId")
-		if typeof(hoistCarrierId) == "number" and hoistCarrierId > 0 then
-			return Players:GetPlayerByUserId(hoistCarrierId)
-		end
+		if typeof(hoistCarrierId) == "number" and hoistCarrierId > 0 then return Players:GetPlayerByUserId(hoistCarrierId) end
 	end
 	local character = hit:FindFirstAncestorOfClass("Model")
 	return if character then Players:GetPlayerFromCharacter(character) else nil
@@ -102,7 +114,7 @@ local function createSellZone(): Part
 	zone.Anchored = true
 	zone.CanCollide = true
 	zone.Material = Enum.Material.Neon
-	zone.Color = Color3.fromRGB(50, 210, 105)
+	zone.Color = SELL_COLOR
 	zone.Transparency = 0.2
 	zone.TopSurface = Enum.SurfaceType.Smooth
 	zone.BottomSurface = Enum.SurfaceType.Smooth
@@ -130,6 +142,7 @@ function EconomyService.start()
 	for _, player in Players:GetPlayers() do setupPlayer(player) end
 	Players.PlayerRemoving:Connect(function(player) touchDebounce[player] = nil end)
 	local sellZone = createSellZone()
+	sellZoneReference = sellZone
 	sellZone.Touched:Connect(function(hit: BasePart)
 		local player = resolvePlayerFromTouch(hit)
 		if player then sellCarriedPart(player) end
