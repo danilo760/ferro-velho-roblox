@@ -123,7 +123,8 @@ function EconomyService.CreateSellZone(ownerUserId: number, cframe: CFrame): Par
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = "VENDER PEÇAS"
+	local owner = Players:GetPlayerByUserId(ownerUserId)
+	label.Text = "DOCA DE " .. (if owner then owner.DisplayName else tostring(ownerUserId)) .. "\nVENDER PEÇAS"
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextStrokeTransparency = 0.25
 	label.TextScaled = true
