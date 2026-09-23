@@ -46,8 +46,17 @@ local function getStats(player: Player): (IntValue?, IntValue?)
 		if cars and cars:IsA("IntValue") then cars else nil
 end
 
+local function waitForStats(player: Player): (IntValue?, IntValue?)
+	local leaderstats = player:WaitForChild("leaderstats", 10)
+	if not leaderstats then return nil, nil end
+	local money = leaderstats:WaitForChild("Dinheiro", 10)
+	local cars = leaderstats:WaitForChild("Carros Desmontados", 10)
+	return if money and money:IsA("IntValue") then money else nil,
+		if cars and cars:IsA("IntValue") then cars else nil
+end
+
 local function applyData(player: Player, data: PlayerData)
-	local money, cars = getStats(player)
+	local money, cars = waitForStats(player)
 	if not money or not cars then
 		warn("Leaderstats unavailable while loading data for " .. player.Name)
 		player:SetAttribute("DataLoadFailed", true)
