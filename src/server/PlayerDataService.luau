@@ -18,7 +18,7 @@ type PlayerData = {
 }
 
 local DEFAULT_DATA: PlayerData = {
-	Cash = 250,
+	Cash = 0,
 	CarsDismantled = 0,
 	ToolLevel = 1,
 	SpeedLevel = 1,

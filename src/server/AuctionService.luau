@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local Workspace = game:GetService("Workspace")
 
 local AuctionCatalog = require(ReplicatedStorage.Shared.AuctionCatalog)
 local AuctionHouseService = require(ServerScriptService.Server.AuctionHouseService)
@@ -44,6 +45,10 @@ function AuctionService.GetHighestBid(): (number, Player?)
 end
 
 function AuctionService.PlaceBid(player: Player, bidAmount: number): (boolean, string)
+	if typeof(bidAmount) ~= "number" or bidAmount ~= bidAmount or bidAmount <= 0 or bidAmount == math.huge or bidAmount % 1 ~= 0 then
+		return false, "Valor de lance inválido."
+	end
+
 	if currentState ~= "Bidding" then
 		return false, "O leilão não está na fase de lances."
 	end
@@ -169,37 +174,61 @@ local function runAuctionCycle()
 			local winner = currentHighestBidder
 			local finalBid = currentHighestBid
 
-			-- Desconta o valor do jogador
-			local spent = EconomyService.TrySpend(winner, finalBid)
+			-- 1. Revalidar box disponível ANTES de debitar
 			local boxTarget = CarLifecycleService.GetAvailableBox(winner)
-
-			if spent and boxTarget then
-				-- Spawna o carro arrematado no box livre do jogador
-				CarLifecycleService.SpawnAuctionCar(winner, boxTarget, {
-					BodyColor = lot.ModelConfig.BodyColor,
-					AccentColor = lot.ModelConfig.AccentColor,
-					InstalledParts = lot.InstalledParts,
-					ScrapMultiplier = lot.ModelConfig.ScrapMultiplier,
-				})
-
-				AuctionHouseService.PlayGavelEffect()
+			if not boxTarget then
 				AuctionHouseService.UpdateBoard(
 					string.format("LOTE #%d: %s", lot.LotId, lot.ModelConfig.DisplayName),
-					"🔨 VENDIDO! MARTELO BATIDO!",
-					"CONCLUÍDO",
-					string.format("Valor Final: R$ %d", finalBid),
-					string.format("🎉 Arrematado por %s (Entregue no Box %d)", winner.DisplayName, boxTarget),
-					Color3.fromRGB(80, 255, 120)
-				)
-			else
-				AuctionHouseService.UpdateBoard(
-					string.format("LOTE #%d: %s", lot.LotId, lot.ModelConfig.DisplayName),
-					"FALHA NO PAGAMENTO OU BOX CHEIO",
+					"LOTE CANCELADO (Vencedor sem box livre)",
 					"--",
 					"Cancelado",
-					"Lote descartado",
-					Color3.fromRGB(255, 60, 60)
+					"Nenhum valor foi debitado",
+					Color3.fromRGB(255, 120, 60)
 				)
+			else
+				-- 2. Tentar debitar
+				local spent = EconomyService.TrySpend(winner, finalBid)
+				if not spent then
+					AuctionHouseService.UpdateBoard(
+						string.format("LOTE #%d: %s", lot.LotId, lot.ModelConfig.DisplayName),
+						"FALHA NO PAGAMENTO (Saldo insuficiente)",
+						"--",
+						"Cancelado",
+						"Lote descartado",
+						Color3.fromRGB(255, 60, 60)
+					)
+				else
+					-- 3. Spawna o carro arrematado no box do jogador
+					local spawnedCar = CarLifecycleService.SpawnAuctionCar(winner, boxTarget, {
+						BodyColor = lot.ModelConfig.BodyColor,
+						AccentColor = lot.ModelConfig.AccentColor,
+						InstalledParts = lot.InstalledParts,
+						ScrapMultiplier = lot.ModelConfig.ScrapMultiplier,
+					})
+
+					if spawnedCar then
+						AuctionHouseService.PlayGavelEffect()
+						AuctionHouseService.UpdateBoard(
+							string.format("LOTE #%d: %s", lot.LotId, lot.ModelConfig.DisplayName),
+							"🔨 VENDIDO! MARTELO BATIDO!",
+							"CONCLUÍDO",
+							string.format("Valor Final: R$ %d", finalBid),
+							string.format("🎉 Arrematado por %s (Entregue no Box %d)", winner.DisplayName, boxTarget),
+							Color3.fromRGB(80, 255, 120)
+						)
+					else
+						-- Falha inesperada no spawn: estorno garantido!
+						EconomyService.AwardBonus(winner, finalBid)
+						AuctionHouseService.UpdateBoard(
+							string.format("LOTE #%d: %s", lot.LotId, lot.ModelConfig.DisplayName),
+							"ERRO NA ENTREGA (Valor Estornado)",
+							"--",
+							"Estornado",
+							"R$ " .. finalBid .. " devolvidos ao jogador",
+							Color3.fromRGB(255, 60, 60)
+						)
+					end
+				end
 			end
 		else
 			currentState = "Passed"
@@ -230,6 +259,9 @@ local function syncAuctionState()
 	house:SetAttribute("LeaderName", if currentHighestBidder then currentHighestBidder.DisplayName else "Nenhum")
 end
 
+local lastBidTime: {[Player]: number} = {}
+local ALLOWED_INCREMENTS = { [50] = true, [100] = true, [250] = true }
+
 function AuctionService.start()
 	AuctionHouseService.build()
 
@@ -240,7 +272,18 @@ function AuctionService.start()
 		newRemote.Parent = ReplicatedStorage
 		bidRemote = newRemote
 	end
-	(bidRemote :: RemoteFunction).OnServerInvoke = function(player: Player, increment: number)
+	(bidRemote :: RemoteFunction).OnServerInvoke = function(player: Player, increment: any)
+		if typeof(increment) ~= "number" or increment ~= increment or not ALLOWED_INCREMENTS[increment] then
+			return false, "Incremento de lance inválido."
+		end
+
+		local now = os.clock()
+		local last = lastBidTime[player] or 0
+		if now - last < 0.35 then
+			return false, "Aguarde um momento antes de enviar outro lance."
+		end
+		lastBidTime[player] = now
+
 		if currentState ~= "Bidding" or not currentLot then
 			return false, "O leilão não está na fase de lances."
 		end
@@ -248,7 +291,7 @@ function AuctionService.start()
 		if currentHighestBidder == nil then
 			targetBid = currentLot.StartingBid
 		else
-			targetBid = currentHighestBid + (increment or 50)
+			targetBid = currentHighestBid + increment
 		end
 		return AuctionService.PlaceBid(player, targetBid)
 	end
