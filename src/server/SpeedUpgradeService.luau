@@ -55,22 +55,38 @@ local function createButton(player: Player, plot: Model)
 	button.CFrame = origin.CFrame * CFrame.new(-14, 0, 14)
 	button.Anchored = true
 	button.CanCollide = true
-	button.Material = Enum.Material.Neon
+	button.Material = Enum.Material.DiamondPlate
 	button.Color = Color3.fromRGB(0, 205, 255)
 	button.Parent = plot
 
-	local border = Instance.new("SelectionBox")
-	border.Adornee = button
-	border.Color3 = Color3.fromRGB(180, 245, 255)
-	border.LineThickness = 0.08
-	border.Parent = button
+	local signBoard = Instance.new("Part")
+	signBoard.Name = "UpgradeSign"
+	signBoard.Size = Vector3.new(8, 4.2, 0.5)
+	signBoard.CFrame = button.CFrame * CFrame.new(0, 3.3, -3.2)
+	signBoard.Anchored = true
+	signBoard.CanCollide = false
+	signBoard.Material = Enum.Material.DiamondPlate
+	signBoard.Color = Color3.fromRGB(27, 39, 45)
+	signBoard.Parent = button
 
-	local gui = Instance.new("BillboardGui")
+	for _, x in { -3.4, 3.4 } do
+		local post = Instance.new("Part")
+		post.Name = "SignPost"
+		post.Size = Vector3.new(0.35, 2.8, 0.35)
+		post.CFrame = button.CFrame * CFrame.new(x, 1.4, -3.2)
+		post.Anchored = true
+		post.CanCollide = false
+		post.Material = Enum.Material.Metal
+		post.Color = Color3.fromRGB(38, 42, 46)
+		post.Parent = button
+	end
+
+	local gui = Instance.new("SurfaceGui")
 	gui.Name = "UpgradeGui"
-	gui.Size = UDim2.fromOffset(300, 105)
-	gui.StudsOffset = Vector3.new(0, 3.8, 0)
-	gui.AlwaysOnTop = true
-	gui.Parent = button
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 50
+	gui.Parent = signBoard
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)

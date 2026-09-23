@@ -41,11 +41,11 @@ local function setBarrierUnlocked(barrier: BasePart, isUnlocked: boolean)
 	barrier.CanCollide = not isUnlocked
 	barrier.Transparency = if isUnlocked then 1 else 0.2
 
-	for _, child in barrier:GetChildren() do
+	for _, child in barrier:GetDescendants() do
 		if child:IsA("BasePart") then
 			child.CanCollide = not isUnlocked
 			child.Transparency = if isUnlocked then 1 else 0
-		elseif child:IsA("BillboardGui") then
+		elseif child:IsA("SurfaceGui") or child:IsA("BillboardGui") then
 			child.Enabled = not isUnlocked
 		end
 	end
@@ -213,17 +213,17 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 		padlock.Color = Color3.fromRGB(190, 150, 45)
 		padlock.Parent = barrier
 
-		local barrierBb = Instance.new("BillboardGui")
+		local barrierBb = Instance.new("SurfaceGui")
 		barrierBb.Name = "BarrierInfo"
-		barrierBb.Size = UDim2.fromOffset(260, 50)
-		barrierBb.StudsOffset = Vector3.new(0, 1.8, 0)
-		barrierBb.AlwaysOnTop = true
-		barrierBb.Parent = barrier
+		barrierBb.Face = Enum.NormalId.Front
+		barrierBb.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		barrierBb.PixelsPerStud = 55
+		barrierBb.Parent = warningBar
 
 		local infoLabel = Instance.new("TextLabel")
 		infoLabel.Size = UDim2.fromScale(1, 1)
 		infoLabel.BackgroundTransparency = 1
-		infoLabel.Text = string.format("🔒 BOX %d BLOQUEADO\nRequer: %s", boxIndex, BOX_REQUISITES[boxIndex])
+		infoLabel.Text = string.format("BOX %d BLOQUEADO  •  %s", boxIndex, BOX_REQUISITES[boxIndex])
 		infoLabel.TextColor3 = Color3.fromRGB(255, 220, 110)
 		infoLabel.TextStrokeColor3 = Color3.fromRGB(40, 15, 10)
 		infoLabel.TextStrokeTransparency = 0.1
@@ -275,6 +275,64 @@ local function createPlot(index: number, position: Vector3): Model
 	backWall.Material = Enum.Material.CorrodedMetal
 	backWall.Color = Color3.fromRGB(58, 62, 66)
 	backWall.Parent = model
+
+	-- Galpão aberto: teto e paredes laterais criam um volume real sem fechar a entrada dos boxes.
+	local workshopRoof = Instance.new("Part")
+	workshopRoof.Name = "WorkshopRoof"
+	workshopRoof.Size = Vector3.new(PLOT_SIZE.X - 1.6, 1, 32)
+	workshopRoof.Position = position + Vector3.new(0, 11, -7.3)
+	workshopRoof.Anchored = true
+	workshopRoof.Material = Enum.Material.Metal
+	workshopRoof.Color = Color3.fromRGB(43, 47, 51)
+	workshopRoof.Parent = model
+
+	for _, sideX in { -PLOT_SIZE.X / 2 + 0.8, PLOT_SIZE.X / 2 - 0.8 } do
+		local sideWall = Instance.new("Part")
+		sideWall.Name = "WorkshopSideWall"
+		sideWall.Size = Vector3.new(1, 10, 32)
+		sideWall.Position = position + Vector3.new(sideX, 5, -7.3)
+		sideWall.Anchored = true
+		sideWall.Material = Enum.Material.CorrodedMetal
+		sideWall.Color = Color3.fromRGB(54, 59, 63)
+		sideWall.Parent = model
+	end
+
+	for _, zOffset in { -20, -10, 0, 8 } do
+		local roofBeam = Instance.new("Part")
+		roofBeam.Name = "RoofBeam"
+		roofBeam.Size = Vector3.new(PLOT_SIZE.X - 2, 0.55, 0.7)
+		roofBeam.Position = position + Vector3.new(0, 10.35, zOffset)
+		roofBeam.Anchored = true
+		roofBeam.Material = Enum.Material.DiamondPlate
+		roofBeam.Color = Color3.fromRGB(29, 32, 35)
+		roofBeam.Parent = model
+	end
+
+	local workshopSign = Instance.new("Part")
+	workshopSign.Name = "WorkshopSign"
+	workshopSign.Size = Vector3.new(25, 3.4, 0.45)
+	workshopSign.Position = position + Vector3.new(0, 8, -PLOT_SIZE.Z / 2 + 0.1)
+	workshopSign.Anchored = true
+	workshopSign.CanCollide = false
+	workshopSign.Material = Enum.Material.DiamondPlate
+	workshopSign.Color = Color3.fromRGB(27, 30, 33)
+	workshopSign.Parent = model
+
+	local workshopGui = Instance.new("SurfaceGui")
+	workshopGui.Face = Enum.NormalId.Front
+	workshopGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	workshopGui.PixelsPerStud = 50
+	workshopGui.Parent = workshopSign
+
+	local workshopLabel = Instance.new("TextLabel")
+	workshopLabel.Size = UDim2.fromScale(1, 1)
+	workshopLabel.BackgroundTransparency = 1
+	workshopLabel.Text = "OFICINA DE DESMONTAGEM"
+	workshopLabel.TextColor3 = Color3.fromRGB(242, 194, 55)
+	workshopLabel.TextStrokeTransparency = 0.25
+	workshopLabel.TextScaled = true
+	workshopLabel.Font = Enum.Font.GothamBlack
+	workshopLabel.Parent = workshopGui
 
 	-- Bancada pesada de trabalho de madeira e metal
 	local bench = Instance.new("Part")
@@ -332,6 +390,17 @@ local function createPlot(index: number, position: Vector3): Model
 	sign.Material = Enum.Material.DiamondPlate
 	sign.Color = Color3.fromRGB(38, 42, 46)
 	sign.Parent = model
+
+	for _, x in { -3.5, 3.5 } do
+		local signPost = Instance.new("Part")
+		signPost.Name = "OwnerSignPost"
+		signPost.Size = Vector3.new(0.45, 3.2, 0.45)
+		signPost.Position = position + Vector3.new(x, 1.6, 23)
+		signPost.Anchored = true
+		signPost.Material = Enum.Material.Metal
+		signPost.Color = Color3.fromRGB(32, 35, 38)
+		signPost.Parent = model
+	end
 
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "OwnerGui"

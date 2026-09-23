@@ -293,16 +293,18 @@ local function buildCentralHub(parent: Model)
 	crownLight.Range = 14
 	crownLight.Parent = crown
 
-	local crownBillboard = Instance.new("BillboardGui")
-	crownBillboard.Size = UDim2.fromOffset(260, 45)
-	crownBillboard.StudsOffset = Vector3.new(0, 1.6, 0)
-	crownBillboard.AlwaysOnTop = true
-	crownBillboard.Parent = crown
+	local kingPlaque = createPart(parent, "KingPlaque", Vector3.new(6.2, 1.4, 0.25), CFrame.new(0, 6.4, -2.3), Enum.Material.DiamondPlate, Color3.fromRGB(30, 32, 35), true, false)
+	local crownBillboard = Instance.new("SurfaceGui")
+	crownBillboard.Name = "KingPlaque"
+	crownBillboard.Face = Enum.NormalId.Front
+	crownBillboard.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	crownBillboard.PixelsPerStud = 55
+	crownBillboard.Parent = kingPlaque
 
 	local crownText = Instance.new("TextLabel")
 	crownText.Size = UDim2.fromScale(1, 1)
 	crownText.BackgroundTransparency = 1
-	crownText.Text = "👑 REI DO FERRO-VELHO 👑"
+	crownText.Text = "REI DO FERRO-VELHO"
 	crownText.TextColor3 = Color3.fromRGB(255, 220, 70)
 	crownText.TextStrokeColor3 = Color3.fromRGB(60, 35, 5)
 	crownText.TextStrokeTransparency = 0.1
@@ -364,16 +366,16 @@ local function buildDock(index: number, parent: Model): DockData
 		createPart(dockModel, "ChuteRail", Vector3.new(0.4, 0.8, 10), dropCf * CFrame.new(xGuide, 0.5, 0), Enum.Material.Metal, Color3.fromRGB(210, 170, 30), true, false)
 	end
 
-	local partsBillboard = Instance.new("BillboardGui")
-	partsBillboard.Size = UDim2.fromOffset(200, 50)
-	partsBillboard.StudsOffset = Vector3.new(0, 3, 0)
-	partsBillboard.AlwaysOnTop = true
+	local partsBillboard = Instance.new("SurfaceGui")
+	partsBillboard.Face = Enum.NormalId.Top
+	partsBillboard.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	partsBillboard.PixelsPerStud = 45
 	partsBillboard.Parent = partsDrop
 
 	local partsLabel = Instance.new("TextLabel")
 	partsLabel.Size = UDim2.fromScale(1, 1)
 	partsLabel.BackgroundTransparency = 1
-	partsLabel.Text = "📦 ESTEIRA DE PEÇAS"
+	partsLabel.Text = "ESTEIRA DE PECAS"
 	partsLabel.TextColor3 = Color3.fromRGB(240, 255, 240)
 	partsLabel.TextStrokeColor3 = Color3.fromRGB(15, 50, 25)
 	partsLabel.TextStrokeTransparency = 0.2
@@ -396,10 +398,10 @@ local function buildDock(index: number, parent: Model): DockData
 	engineBay:SetAttribute("DockId", index)
 	engineBay:SetAttribute("ZoneType", "EngineBay")
 
-	local bayBillboard = Instance.new("BillboardGui")
-	bayBillboard.Size = UDim2.fromOffset(220, 50)
-	bayBillboard.StudsOffset = Vector3.new(0, 3, 0)
-	bayBillboard.AlwaysOnTop = true
+	local bayBillboard = Instance.new("SurfaceGui")
+	bayBillboard.Face = Enum.NormalId.Top
+	bayBillboard.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	bayBillboard.PixelsPerStud = 45
 	bayBillboard.Parent = engineBay
 
 	local bayLabel = Instance.new("TextLabel")
