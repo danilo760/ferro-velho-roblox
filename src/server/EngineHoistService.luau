@@ -119,6 +119,7 @@ function EngineHoistService.start(car: Model, home: CFrame, ownerUserId: number,
 	engine:SetAttribute("CarrierUserId", 0)
 	engine:SetAttribute("OwnerUserId", ownerUserId)
 	engine:SetAttribute("BoxIndex", bIndex)
+	engine:SetAttribute("CarSessionId", car:GetAttribute("CarSessionId"))
 
 	local point = Instance.new("Attachment")
 	point.Position = Vector3.new(0, engine.Size.Y / 2 + 0.8, 0)

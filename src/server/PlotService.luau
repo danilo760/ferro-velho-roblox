@@ -360,7 +360,7 @@ function PlotService.UnlockBox(player: Player, boxIndex: number): boolean
 end
 
 function PlotService.GetBoxOrigin(player: Player, boxIndex: number): CFrame?
-	local plot = playerPlots[player]
+	local plot = PlotService.GetPlot(player)
 	local boxes = plot and plot:FindFirstChild("Boxes")
 	local box = boxes and boxes:FindFirstChild("Box_" .. boxIndex)
 	local origin = box and box:FindFirstChild("BoxOrigin")
@@ -368,7 +368,7 @@ function PlotService.GetBoxOrigin(player: Player, boxIndex: number): CFrame?
 end
 
 function PlotService.GetBoxHoistOrigin(player: Player, boxIndex: number): CFrame?
-	local plot = playerPlots[player]
+	local plot = PlotService.GetPlot(player)
 	local boxes = plot and plot:FindFirstChild("Boxes")
 	local box = boxes and boxes:FindFirstChild("Box_" .. boxIndex)
 	local hoistOrigin = box and box:FindFirstChild("BoxHoistOrigin")
@@ -450,11 +450,24 @@ local function releasePlot(player: Player)
 end
 
 function PlotService.GetPlot(player: Player): Model?
-	return playerPlots[player]
+	local plot = playerPlots[player]
+	if plot and plot.Parent then return plot end
+
+	-- Fallback resiliente por OwnerUserId na pasta TycoonPlots
+	local folder = Workspace:FindFirstChild("TycoonPlots")
+	if folder then
+		for _, p in folder:GetChildren() do
+			if p:IsA("Model") and p:GetAttribute("OwnerUserId") == player.UserId then
+				playerPlots[player] = p
+				return p
+			end
+		end
+	end
+	return nil
 end
 
 function PlotService.GetPlotOrigin(player: Player): CFrame?
-	local plot = playerPlots[player]
+	local plot = PlotService.GetPlot(player)
 	local origin = plot and plot:FindFirstChild("Origin")
 	return if origin and origin:IsA("BasePart") then origin.CFrame else nil
 end

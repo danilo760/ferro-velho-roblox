@@ -2,11 +2,15 @@
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local CarLifecycleService = require(ServerScriptService.Server.CarLifecycleService)
 
 local PlayerDataService = {}
 local STORE_NAME = "FerroVelhoPlayerData_v1"
 local AUTOSAVE_INTERVAL = 60
 local saving: {[Player]: boolean} = {}
+local studioMockStore: {[string]: any} = {}
 
 type PlayerData = {
 	Cash: number,
@@ -15,6 +19,7 @@ type PlayerData = {
 	ToolLevel: number,
 	SpeedLevel: number,
 	UnlockedBoxes: number,
+	BoxCars: {[string]: any}?,
 	SchemaVersion: number,
 }
 
@@ -25,6 +30,7 @@ local DEFAULT_DATA: PlayerData = {
 	ToolLevel = 1,
 	SpeedLevel = 1,
 	UnlockedBoxes = 1,
+	BoxCars = {},
 	SchemaVersion = 1,
 }
 
@@ -42,6 +48,7 @@ local function sanitize(raw: any): PlayerData
 		ToolLevel = integerInRange(raw.ToolLevel, 1, 1, 2),
 		SpeedLevel = integerInRange(raw.SpeedLevel, 1, 1, 5),
 		UnlockedBoxes = integerInRange(raw.UnlockedBoxes, 1, 1, 3),
+		BoxCars = if typeof(raw.BoxCars) == "table" then raw.BoxCars else {},
 		SchemaVersion = 1,
 	}
 end
@@ -82,6 +89,10 @@ local function applyData(player: Player, data: PlayerData)
 	player:SetAttribute("ToolLevel", data.ToolLevel)
 	player:SetAttribute("SpeedLevel", data.SpeedLevel)
 	player:SetAttribute("UnlockedBoxes", data.UnlockedBoxes)
+
+	-- Restaurar configurações dos Boxes (CurrentCar e PendingCar)
+	CarLifecycleService.LoadBoxCars(player, data.BoxCars)
+
 	player:SetAttribute("DataLoadFailed", false)
 	player:SetAttribute("DataLoaded", true)
 end
@@ -100,6 +111,7 @@ local function snapshot(player: Player): PlayerData?
 		ToolLevel = toolLevel,
 		SpeedLevel = if typeof(speedLevel) == "number" then speedLevel else 1,
 		UnlockedBoxes = if typeof(unlockedBoxes) == "number" then unlockedBoxes else 1,
+		BoxCars = CarLifecycleService.SerializeBoxCars(player),
 		SchemaVersion = 1,
 	})
 end
@@ -108,6 +120,22 @@ local function loadPlayer(player: Player)
 	player:SetAttribute("DataLoaded", false)
 	player:SetAttribute("DataLoadFailed", false)
 	local key = "Player_" .. player.UserId
+
+	-- Fallback para Studio Play Solo (PlaceId == 0)
+	if game.PlaceId == 0 or game.GameId == 0 then
+		player:SetAttribute("DataSessionMode", "StudioMock")
+		local cached = studioMockStore[key]
+		if cached then
+			applyData(player, sanitize(cached))
+		else
+			applyData(player, table.clone(DEFAULT_DATA))
+		end
+		player:SetAttribute("DataLoaded", true)
+		player:SetAttribute("DataLoadFailed", false)
+		return
+	end
+
+	player:SetAttribute("DataSessionMode", "Persistent")
 	local success, result = pcall(function()
 		local dataStore = DataStoreService:GetDataStore(STORE_NAME)
 		return dataStore:GetAsync(key)
@@ -123,15 +151,6 @@ local function loadPlayer(player: Player)
 end
 
 local function initializePlayer(player: Player)
-	if game.PlaceId == 0 or game.GameId == 0 then
-		player:SetAttribute("DataLoaded", false)
-		player:SetAttribute("DataLoadFailed", false)
-		applyData(player, table.clone(DEFAULT_DATA))
-		player:SetAttribute("DataLoadFailed", true)
-		player:SetAttribute("DataSessionMode", "Temporary")
-		return
-	end
-	player:SetAttribute("DataSessionMode", "Persistent")
 	task.spawn(loadPlayer, player)
 end
 
@@ -141,6 +160,14 @@ local function savePlayer(player: Player): boolean
 	if not data then return false end
 	saving[player] = true
 	local key = "Player_" .. player.UserId
+
+	-- Em Studio Play Solo (PlaceId == 0), persistir no mock em memória
+	if game.PlaceId == 0 or game.GameId == 0 then
+		studioMockStore[key] = data
+		saving[player] = nil
+		return true
+	end
+
 	local success, result = pcall(function()
 		local dataStore = DataStoreService:GetDataStore(STORE_NAME)
 		return dataStore:UpdateAsync(key, function(_oldValue)
@@ -152,6 +179,14 @@ local function savePlayer(player: Player): boolean
 		warn("Failed to save data for " .. player.Name .. ": " .. tostring(result))
 	end
 	return success
+end
+
+function PlayerDataService.SavePlayer(player: Player): boolean
+	return savePlayer(player)
+end
+
+function PlayerDataService.LoadPlayer(player: Player)
+	loadPlayer(player)
 end
 
 function PlayerDataService.start()

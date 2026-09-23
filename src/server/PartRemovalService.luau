@@ -30,6 +30,7 @@ type PartRuntime = {
 }
 
 local userRuntimes: {[number]: {[string]: PartRuntime}} = {}
+local userBoxRuntimes: {[number]: {[number]: {[string]: PartRuntime}}} = {}
 
 local function getRoot(player: Player): BasePart?
 	local character = player.Character
@@ -51,8 +52,15 @@ local function getDependencies(partId: string): {string}
 end
 
 function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroundY: number?)
+	local boxIndex = car:GetAttribute("BoxIndex") or 1
 	local runtimes: {[string]: PartRuntime} = {}
-	if ownerUserId then userRuntimes[ownerUserId] = runtimes end
+	if ownerUserId then
+		userRuntimes[ownerUserId] = runtimes
+		if not userBoxRuntimes[ownerUserId] then
+			userBoxRuntimes[ownerUserId] = {}
+		end
+		userBoxRuntimes[ownerUserId][boxIndex] = runtimes
+	end
 
 	local function getRemovalSeconds(defaultSeconds: number): number
 		if not ownerUserId then return defaultSeconds end
@@ -153,6 +161,8 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 		part:SetAttribute("PartState", "Installed")
 		part:SetAttribute("CarrierUserId", 0)
 		part:SetAttribute("OwnerUserId", ownerUserId or 0)
+		part:SetAttribute("CarSessionId", car:GetAttribute("CarSessionId"))
+		part:SetAttribute("BoxIndex", car:GetAttribute("BoxIndex") or 1)
 		local interactionPoint = Instance.new("Attachment")
 		interactionPoint.Name = "InteractionPoint"
 		interactionPoint.Position = Vector3.new(0, math.max(part.Size.Y / 2 + 1.2, 1.5), 0)
@@ -241,14 +251,23 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 		local toolLevelConnection = owner:GetAttributeChangedSignal("ToolLevel"):Connect(refreshAll)
 		car.Destroying:Once(function()
 			toolLevelConnection:Disconnect()
-			if ownerUserId then userRuntimes[ownerUserId] = nil end
+			if ownerUserId then
+				if userRuntimes[ownerUserId] == runtimes then
+					userRuntimes[ownerUserId] = nil
+				end
+				if userBoxRuntimes[ownerUserId] and userBoxRuntimes[ownerUserId][boxIndex] == runtimes then
+					userBoxRuntimes[ownerUserId][boxIndex] = nil
+				end
+			end
 		end)
 	end
 	refreshAll()
 end
 
-function PartRemovalService.TriggerPart(player: Player, partId: string): boolean
-	local runtimes = userRuntimes[player.UserId]
+function PartRemovalService.TriggerPart(player: Player, partId: string, boxIndex: number?): boolean
+	local runtimes = if boxIndex and userBoxRuntimes[player.UserId]
+		then userBoxRuntimes[player.UserId][boxIndex]
+		else userRuntimes[player.UserId]
 	local runtime = runtimes and runtimes[partId]
 	if runtime then
 		runtime.triggerHandler(player)

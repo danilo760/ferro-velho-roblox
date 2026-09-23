@@ -32,7 +32,7 @@ export type BoxCarConfig = {
 	ConservationName: string?,
 }
 
-type BoxCarSlot = {
+export type BoxCarSlot = {
 	CurrentConfig: BoxCarConfig?,
 	PendingConfig: BoxCarConfig?,
 }
@@ -52,6 +52,61 @@ type CarSession = {
 local playerSessions: {[number]: {[number]: CarSession}} = {}
 local playerBoxSlots: {[number]: {[number]: BoxCarSlot}} = {}
 local sessionCounter = 0
+
+local function colorToTable(color: Color3?): {number}?
+	if not color then return nil end
+	return {
+		math.clamp(math.floor(color.R * 255 + 0.5), 0, 255),
+		math.clamp(math.floor(color.G * 255 + 0.5), 0, 255),
+		math.clamp(math.floor(color.B * 255 + 0.5), 0, 255),
+	}
+end
+
+local function tableToColor(tab: any): Color3?
+	if typeof(tab) ~= "table" or #tab < 3 then return nil end
+	local r = typeof(tab[1]) == "number" and tab[1] or 0
+	local g = typeof(tab[2]) == "number" and tab[2] or 0
+	local b = typeof(tab[3]) == "number" and tab[3] or 0
+	return Color3.fromRGB(r, g, b)
+end
+
+local function serializeConfig(config: BoxCarConfig?): any
+	if not config then return nil end
+	return {
+		ModelId = config.ModelId,
+		DisplayName = config.DisplayName,
+		ScrapMultiplier = config.ScrapMultiplier,
+		InstalledParts = config.InstalledParts,
+		BodyColor = colorToTable(config.BodyColor),
+		AccentColor = colorToTable(config.AccentColor),
+		ConservationName = config.ConservationName,
+	}
+end
+
+local function deserializeConfig(raw: any): BoxCarConfig?
+	if typeof(raw) ~= "table" or typeof(raw.ModelId) ~= "string" or typeof(raw.DisplayName) ~= "string" then
+		return nil
+	end
+	local mult = typeof(raw.ScrapMultiplier) == "number" and raw.ScrapMultiplier or 1
+	local parts: {string}? = nil
+	if typeof(raw.InstalledParts) == "table" then
+		parts = {}
+		for _, p in raw.InstalledParts do
+			if typeof(p) == "string" then
+				table.insert(parts, p)
+			end
+		end
+	end
+	return {
+		ModelId = raw.ModelId,
+		DisplayName = raw.DisplayName,
+		ScrapMultiplier = mult,
+		InstalledParts = parts,
+		BodyColor = tableToColor(raw.BodyColor),
+		AccentColor = tableToColor(raw.AccentColor),
+		ConservationName = typeof(raw.ConservationName) == "string" and raw.ConservationName or nil,
+	}
+end
 
 local function getOrCreateBoxSlot(userId: number, boxIndex: number): BoxCarSlot
 	if not playerBoxSlots[userId] then
@@ -98,7 +153,7 @@ local function completeSession(session: CarSession)
 	if player then
 		EconomyService.AwardBonus(player, COMPLETION_BONUS)
 		EconomyService.IncrementCars(player)
-		EconomyService.AddTickets(player, 1) -- +1 Ticket de Leilão por ciclo completo!
+		EconomyService.AddTickets(player, 1) -- +1 Ticket de Leilão por ciclo completo
 		player:SetAttribute("LastCarBonus", COMPLETION_BONUS)
 		local serial = player:GetAttribute("CarCompletionSerial")
 		player:SetAttribute("CarCompletionSerial", if typeof(serial) == "number" then serial + 1 else 1)
@@ -134,6 +189,10 @@ spawnCarForBox = function(player: Player, plot: Model, boxIndex: number)
 
 	local oldSession = playerSessions[player.UserId][boxIndex]
 	if oldSession and oldSession.Model.Parent then oldSession.Model:Destroy() end
+	local oldBoxCar = Workspace:FindFirstChild(string.format("BoxCar_%d_%d", player.UserId, boxIndex))
+	if oldBoxCar then oldBoxCar:Destroy() end
+	local oldTrainingCar = Workspace:FindFirstChild(string.format("TrainingCar_%d_%d", player.UserId, boxIndex))
+	if oldTrainingCar then oldTrainingCar:Destroy() end
 	EngineHoistService.RemoveForOwner(player.UserId, boxIndex)
 
 	local pad = plot:FindFirstChild("Pad")
@@ -233,15 +292,92 @@ local function spawnForPlayer(player: Player, plot: Model)
 end
 
 local function removeForPlayer(player: Player)
-	local sessions = playerSessions[player.UserId]
+	local userId = player.UserId
+	local sessions = playerSessions[userId]
 	if sessions then
 		for _, session in sessions do
 			if session.Model.Parent then session.Model:Destroy() end
 		end
 	end
-	playerSessions[player.UserId] = nil
-	playerBoxSlots[player.UserId] = nil
-	EngineHoistService.RemoveForOwner(player.UserId)
+	playerSessions[userId] = nil
+	EngineHoistService.RemoveForOwner(userId)
+
+	-- Manter playerBoxSlots por 15 segundos para permitir que o PlayerDataService salve os dados sem risco de corrida
+	task.delay(15, function()
+		if not Players:GetPlayerByUserId(userId) then
+			playerBoxSlots[userId] = nil
+		end
+	end)
+end
+
+function CarLifecycleService.SerializeBoxCars(player: Player): {[string]: any}
+	local result: {[string]: any} = {}
+	local userSlots = playerBoxSlots[player.UserId]
+	if not userSlots then return result end
+
+	for b = 1, 3 do
+		local slot = userSlots[b]
+		if slot then
+			result[tostring(b)] = {
+				Current = serializeConfig(slot.CurrentConfig),
+				Pending = serializeConfig(slot.PendingConfig),
+			}
+		end
+	end
+	return result
+end
+
+function CarLifecycleService.LoadBoxCars(player: Player, savedData: any)
+	if not playerBoxSlots[player.UserId] then
+		playerBoxSlots[player.UserId] = {}
+	end
+	for b = 1, 3 do
+		local slot = getOrCreateBoxSlot(player.UserId, b)
+		slot.CurrentConfig = nil
+		slot.PendingConfig = nil
+	end
+
+	if typeof(savedData) == "table" then
+		for b = 1, 3 do
+			local boxKey = tostring(b)
+			local boxData = savedData[boxKey]
+			if typeof(boxData) == "table" then
+				local slot = getOrCreateBoxSlot(player.UserId, b)
+				slot.CurrentConfig = deserializeConfig(boxData.Current)
+				slot.PendingConfig = deserializeConfig(boxData.Pending)
+				if slot.CurrentConfig then
+					player:SetAttribute(string.format("Box_%d_Current", b), slot.CurrentConfig.DisplayName)
+				end
+				if slot.PendingConfig then
+					player:SetAttribute(string.format("Box_%d_Pending", b), slot.PendingConfig.DisplayName)
+				end
+			end
+		end
+	end
+
+	-- Se o lote já estiver atribuído, sincronizar os boxes ativos com os carros restaurados
+	local plot = PlotService.GetPlot(player)
+	if plot then
+		local unlocked = player:GetAttribute("UnlockedBoxes")
+		local maxUnlocked = if typeof(unlocked) == "number" then math.clamp(unlocked, 1, 3) else 1
+		for b = 1, maxUnlocked do
+			local slot = playerBoxSlots[player.UserId][b]
+			if slot and slot.CurrentConfig then
+				spawnCarForBox(player, plot, b)
+			end
+		end
+	end
+end
+
+function CarLifecycleService.HasPendingCar(player: Player, boxIndex: number): boolean
+	local userSlots = playerBoxSlots[player.UserId]
+	local slot = userSlots and userSlots[boxIndex]
+	return slot ~= nil and slot.PendingConfig ~= nil
+end
+
+function CarLifecycleService.GetBoxSlot(player: Player, boxIndex: number): BoxCarSlot?
+	local userSlots = playerBoxSlots[player.UserId]
+	return if userSlots then userSlots[boxIndex] else nil
 end
 
 function CarLifecycleService.start()
@@ -253,13 +389,13 @@ function CarLifecycleService.start()
 
 	EconomyService.OnPartSold:Connect(function(player: Player, car: Model?, sessionId: any, partId: any, _value: number)
 		local sessions = playerSessions[player.UserId]
-		if not sessions or not car then return end
-		local boxIndex = car:GetAttribute("BoxIndex")
+		if not sessions then return end
+		local boxIndex = if car then car:GetAttribute("BoxIndex") else nil
 		local targetBox = if typeof(boxIndex) == "number" then boxIndex else 1
 		local session = sessions[targetBox]
 
 		if not session or session.IsCompleted then return end
-		if car ~= session.Model or sessionId ~= session.SessionId then return end
+		if sessionId ~= session.SessionId and (not car or car ~= session.Model) then return end
 		if typeof(partId) ~= "string" or not EXPECTED_PARTS[partId] or session.SoldParts[partId] then return end
 
 		session.SoldParts[partId] = true
@@ -315,6 +451,9 @@ function CarLifecycleService.AssignCarToBox(player: Player, boxIndex: number, co
 
 	local isDisassembling = session ~= nil and not session.IsCompleted and session.SoldCount > 0
 	if isDisassembling then
+		if slot.PendingConfig ~= nil then
+			return "AlreadyPending"
+		end
 		slot.PendingConfig = config
 		player:SetAttribute(string.format("Box_%d_Pending", boxIndex), config.DisplayName)
 		return "QueuedPending"

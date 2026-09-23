@@ -398,10 +398,7 @@ local function renderOfferCard(offer: CatalogOffer)
 	local buyBtn = Instance.new("TextButton")
 	buyBtn.Size = UDim2.new(1, -16, 0, 38)
 	buyBtn.Position = UDim2.fromOffset(8, 236)
-	buyBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 80)
 	buyBtn.BorderSizePixel = 0
-	buyBtn.Text = "Comprar"
-	buyBtn.TextColor3 = Color3.new(1, 1, 1)
 	buyBtn.Font = Enum.Font.GothamBlack
 	buyBtn.TextSize = 14
 	buyBtn.Parent = card
@@ -410,7 +407,27 @@ local function renderOfferCard(offer: CatalogOffer)
 	buyCorner.CornerRadius = UDim.new(0, 8)
 	buyCorner.Parent = buyBtn
 
+	if isPurchased then
+		buyBtn.Text = "Adquirido"
+		buyBtn.BackgroundColor3 = Color3.fromRGB(55, 60, 70)
+		buyBtn.TextColor3 = Color3.fromRGB(160, 165, 175)
+		buyBtn.Active = false
+	else
+		buyBtn.Text = "Comprar"
+		buyBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 80)
+		buyBtn.TextColor3 = Color3.new(1, 1, 1)
+		buyBtn.Active = true
+	end
+
 	buyBtn.MouseButton1Click:Connect(function()
+		if isPurchased then return end
+		local isLoaded = player:GetAttribute("DataLoaded")
+		if isLoaded ~= true then
+			feedbackLabel.Text = "Aguarde o carregamento dos seus dados antes de comprar."
+			feedbackLabel.TextColor3 = Color3.fromRGB(255, 120, 60)
+			return
+		end
+
 		local buyRemote = ReplicatedStorage:FindFirstChild("BuyAuctionCatalogCar")
 		if not buyRemote or not buyRemote:IsA("RemoteFunction") then return end
 
@@ -418,27 +435,32 @@ local function renderOfferCard(offer: CatalogOffer)
 		buyBtn.Active = false
 
 		local success, message = buyRemote:InvokeServer(selectedBoxIndex, offer.OfferId)
-		buyBtn.Active = true
-		buyBtn.Text = "Comprar"
-
 		feedbackLabel.Text = message
 		feedbackLabel.TextColor3 = if success then Color3.fromRGB(80, 255, 140) else Color3.fromRGB(255, 100, 90)
 
 		if success then
-			card:Destroy()
+			buyBtn.Text = "Adquirido"
+			buyBtn.BackgroundColor3 = Color3.fromRGB(55, 60, 70)
+			buyBtn.TextColor3 = Color3.fromRGB(160, 165, 175)
+			buyBtn.Active = false
 			updateTicketDisplay()
 			updateBoxBar()
+		else
+			buyBtn.Active = true
+			buyBtn.Text = "Comprar"
 		end
 	end)
 end
 
-local function refreshUI(offers: {CatalogOffer})
+local function refreshUI(offers: {CatalogOffer}, purchasedOffers: {[string]: boolean}?)
 	currentOffers = offers
+	local purchased = purchasedOffers or {}
 	for _, child in scrollFrame:GetChildren() do
 		if child:IsA("Frame") then child:Destroy() end
 	end
 	for _, offer in offers do
-		renderOfferCard(offer)
+		local isPurchased = purchased[offer.OfferId] == true
+		renderOfferCard(offer, isPurchased)
 	end
 	updateTicketDisplay()
 	updateBoxBar()
@@ -450,7 +472,7 @@ local function fetchCatalog()
 		local data = getRemote:InvokeServer()
 		if data and data.Offers then
 			refreshDeadline = os.time() + (data.TimeRemaining or 300)
-			refreshUI(data.Offers)
+			refreshUI(data.Offers, data.PurchasedOffers)
 		end
 	end
 end

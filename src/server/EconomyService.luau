@@ -106,8 +106,14 @@ local function sellCarriedPart(player: Player, zone: Part)
 		local definition = if typeof(partId) == "string" then PartsCatalog[partId] else nil
 		if definition then
 			local car = findCarModel(part)
-			local sessionId = car and car:GetAttribute("CarSessionId")
-			local mult = car and car:GetAttribute("ScrapMultiplier")
+			local boxIndex = (car and car:GetAttribute("BoxIndex")) or part:GetAttribute("BoxIndex") or 1
+			if not car and typeof(boxIndex) == "number" then
+				car = Workspace:FindFirstChild(string.format("BoxCar_%d_%d", player.UserId, boxIndex))
+					or Workspace:FindFirstChild(string.format("TrainingCar_%d_%d", player.UserId, boxIndex))
+					or Workspace:FindFirstChild(string.format("AuctionCar_%d_%d", player.UserId, boxIndex))
+			end
+			local sessionId = (car and car:GetAttribute("CarSessionId")) or part:GetAttribute("CarSessionId")
+			local mult = (car and car:GetAttribute("ScrapMultiplier")) or part:GetAttribute("ScrapMultiplier")
 			local multiplier = if typeof(mult) == "number" and mult > 0 then mult else 1
 			local sellValue = math.round(definition.SellValue * multiplier)
 			money.Value += sellValue
@@ -171,6 +177,11 @@ function EconomyService.CreateSellZone(_ownerUserId: number, _cframe: CFrame): P
 end
 
 function EconomyService.RemoveSellZone(_ownerUserId: number)
+end
+
+function EconomyService.SimulatePartSold(player: Player, car: Model, partId: string, sellValue: number?)
+	local sessionId = car:GetAttribute("CarSessionId")
+	partSoldEvent:Fire(player, car, sessionId, partId, sellValue or 100)
 end
 
 function EconomyService.TrySpend(player: Player, amount: number): boolean
