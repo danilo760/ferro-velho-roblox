@@ -6,6 +6,15 @@ local TweenService = game:GetService("TweenService")
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
 local TrainingCarConfig = require(ReplicatedStorage.Shared.TrainingCarConfig)
 local PartRemovalService = {}
+
+type ActiveCarry = {
+	Part: BasePart,
+	Weld: WeldConstraint,
+	Prompt: ProximityPrompt,
+	SafeCFrame: CFrame,
+}
+
+local activeCarries: {[Player]: ActiveCarry} = {}
 local MAX_SERVER_DISTANCE = 16
 local CARRY_OFFSET = CFrame.new(0, 0.5, -4)
 local ENABLED_PARTS = {
@@ -103,6 +112,7 @@ function PartRemovalService.setupCar(car: Model)
 		local root = getRoot(player)
 		if not root then return end
 		if runtime.carryWeld then runtime.carryWeld:Destroy() runtime.carryWeld = nil end
+		activeCarries[player] = nil
 		local part = runtime.part
 		part.Anchored = true
 		part.CanCollide = true
@@ -172,6 +182,12 @@ function PartRemovalService.setupCar(car: Model)
 				weld.Part1 = part
 				weld.Parent = part
 				runtime.carryWeld = weld
+				activeCarries[player] = {
+					Part = part,
+					Weld = weld,
+					Prompt = prompt,
+					SafeCFrame = part.CFrame,
+				}
 				part:SetAttribute("PartState", "Carried")
 				part:SetAttribute("CarrierUserId", player.UserId)
 				player:SetAttribute("CarriedPartId", definition.Id)
@@ -187,6 +203,36 @@ function PartRemovalService.setupCar(car: Model)
 		end)
 	end
 	refreshAll()
+end
+
+function PartRemovalService.ClearCarriedPart(player: Player)
+	activeCarries[player] = nil
+	player:SetAttribute("CarriedPartId", nil)
+end
+
+function PartRemovalService.HandlePlayerLoss(player: Player)
+	local data = activeCarries[player]
+	if not data then
+		player:SetAttribute("CarriedPartId", nil)
+		return
+	end
+
+	if data.Weld.Parent then data.Weld:Destroy() end
+	local part = data.Part
+	if part.Parent then
+		part.Anchored = true
+		part.CanCollide = true
+		part.Massless = false
+		part.CFrame = data.SafeCFrame
+		part:SetAttribute("PartState", "Removed")
+		part:SetAttribute("CarrierUserId", 0)
+		data.Prompt.ActionText = "Pegar"
+		data.Prompt.HoldDuration = 0.25
+		data.Prompt.Enabled = true
+	end
+
+	activeCarries[player] = nil
+	player:SetAttribute("CarriedPartId", nil)
 end
 
 return PartRemovalService
