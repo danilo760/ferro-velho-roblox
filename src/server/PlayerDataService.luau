@@ -82,15 +82,16 @@ local function loadPlayer(player: Player)
 	end)
 	if not player.Parent then return end
 	if not success then
+		applyData(player, table.clone(DEFAULT_DATA))
 		player:SetAttribute("DataLoadFailed", true)
-		warn("Failed to load data for " .. player.Name .. ": " .. tostring(result))
+		warn("DataStore unavailable; using a temporary unsaved session for " .. player.Name .. ": " .. tostring(result))
 		return
 	end
 	applyData(player, sanitize(result))
 end
 
 local function savePlayer(player: Player): boolean
-	if player:GetAttribute("DataLoaded") ~= true or saving[player] then return false end
+	if player:GetAttribute("DataLoaded") ~= true or player:GetAttribute("DataLoadFailed") == true or saving[player] then return false end
 	local data = snapshot(player)
 	if not data then return false end
 	saving[player] = true
