@@ -11,6 +11,7 @@ local PartRemovalService = require(ServerScriptService.Server.PartRemovalService
 local EngineHoistService = require(ServerScriptService.Server.EngineHoistService)
 local EconomyService = require(ServerScriptService.Server.EconomyService)
 local PartRecoveryService = require(ServerScriptService.Server.PartRecoveryService)
+local RecyclingCenterService = require(ServerScriptService.Server.RecyclingCenterService)
 
 local CarLifecycleService = {}
 local COMPLETION_BONUS = 225
@@ -100,7 +101,7 @@ spawnForPlayer = function(player: Player, plot: Model)
 
 	PartRemovalService.setupCar(car, player.UserId, plotGroundY)
 	EngineHoistService.start(car, origin * CFrame.new(-15, 0.5, -15), player.UserId)
-	EconomyService.CreateSellZone(player.UserId, origin * CFrame.new(16, 0, 0))
+	EconomyService.CreateSellZone(player.UserId, RecyclingCenterService.GetDockCFrame(plot))
 	PartRecoveryService.start(car, plotGroundY, origin.Position)
 
 	sessions[player.UserId] = {
