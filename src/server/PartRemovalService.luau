@@ -6,7 +6,7 @@ local TweenService = game:GetService("TweenService")
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
 local TrainingCarConfig = require(ReplicatedStorage.Shared.TrainingCarConfig)
 local PartRemovalService = {}
-local MAX_SERVER_DISTANCE = 12
+local MAX_SERVER_DISTANCE = 16
 local CARRY_OFFSET = CFrame.new(0, 0.5, -4)
 local ENABLED_PARTS = {
 	"Hood", "Battery", "HeadlightLeft", "HeadlightRight", "DoorLeft", "DoorRight",
@@ -123,12 +123,19 @@ function PartRemovalService.setupCar(car: Model)
 		part:SetAttribute("PartId", definition.Id)
 		part:SetAttribute("PartState", "Installed")
 		part:SetAttribute("CarrierUserId", 0)
+		local interactionPoint = Instance.new("Attachment")
+		interactionPoint.Name = "InteractionPoint"
+		interactionPoint.Position = Vector3.new(0, math.max(part.Size.Y / 2 + 1.2, 1.5), 0)
+		interactionPoint.Parent = part
+
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "PartPrompt"
 		prompt.KeyboardKeyCode = Enum.KeyCode.E
-		prompt.MaxActivationDistance = 10
+		prompt.MaxActivationDistance = if partId == "Hood" then 16 else 13
 		prompt.RequiresLineOfSight = false
-		prompt.Parent = part
+		prompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton
+		prompt.UIOffset = Vector2.new(0, -12)
+		prompt.Parent = interactionPoint
 		local runtime: PartRuntime = {
 			part = part, prompt = prompt, dependencies = getDependencies(partId),
 			removalSlot = slot, busy = false, carryWeld = nil,
