@@ -105,4 +105,41 @@ RunService:BindToRenderStep("CarryPose", Enum.RenderPriority.Character.Value + 1
 	if leftShoulder then leftShoulder.Transform = leftShoulder.Transform:Lerp(targetLeft, alpha) end
 end)
 
+local function showCarCompleted()
+	local banner = Instance.new("TextLabel")
+	banner.AnchorPoint = Vector2.new(0.5, 0.5)
+	banner.Position = UDim2.fromScale(0.5, 0.24)
+	banner.Size = UDim2.fromOffset(520, 90)
+	banner.BackgroundColor3 = Color3.fromRGB(20, 28, 24)
+	banner.BackgroundTransparency = 0.12
+	banner.Text = "CARRO CONCLUÍDO  •  BÔNUS R$ " .. tostring(player:GetAttribute("LastCarBonus") or 0)
+	banner.TextColor3 = Color3.fromRGB(255, 225, 95)
+	banner.TextStrokeTransparency = 0.45
+	banner.TextScaled = true
+	banner.Font = Enum.Font.GothamBlack
+	banner.Parent = gui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = banner
+
+	banner.Size = UDim2.fromOffset(360, 60)
+	TweenService:Create(banner, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.fromOffset(520, 90),
+	}):Play()
+	task.wait(1.8)
+	local exitTween = TweenService:Create(banner, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Position = UDim2.fromScale(0.5, 0.16),
+		TextTransparency = 1,
+		BackgroundTransparency = 1,
+	})
+	exitTween:Play()
+	exitTween.Completed:Wait()
+	banner:Destroy()
+end
+
+player:GetAttributeChangedSignal("CarCompletionSerial"):Connect(function()
+	task.spawn(showCarCompleted)
+end)
+
 task.spawn(watchMoney)
