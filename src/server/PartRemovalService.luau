@@ -10,7 +10,19 @@ local PartRemovalService = {}
 
 local MAX_SERVER_DISTANCE = 12
 local CARRY_OFFSET = CFrame.new(0, 0.5, -4)
-local ENABLED_PARTS = { "Hood", "Battery", "HeadlightLeft", "HeadlightRight" }
+local ENABLED_PARTS = {
+	"Hood",
+	"Battery",
+	"HeadlightLeft",
+	"HeadlightRight",
+	"DoorLeft",
+	"DoorRight",
+	"Trunk",
+	"WheelFrontLeft",
+	"WheelFrontRight",
+	"WheelRearLeft",
+	"WheelRearRight",
+}
 
 type PartRuntime = {
 	part: BasePart,
@@ -23,15 +35,9 @@ type PartRuntime = {
 
 local function getRoot(player: Player): BasePart?
 	local character = player.Character
-	if not character then
-		return nil
-	end
-
+	if not character then return nil end
 	local root = character:FindFirstChild("HumanoidRootPart")
-	if root and root:IsA("BasePart") then
-		return root
-	end
-
+	if root and root:IsA("BasePart") then return root end
 	return nil
 end
 
@@ -42,9 +48,7 @@ end
 
 local function getDependencies(partId: string): {string}
 	for _, config in TrainingCarConfig.Parts do
-		if config.PartId == partId then
-			return config.RequiredPartsRemoved
-		end
+		if config.PartId == partId then return config.RequiredPartsRemoved end
 	end
 	return {}
 end
@@ -66,10 +70,7 @@ function PartRemovalService.setupCar(car: Model)
 	local function refreshPrompt(runtime: PartRuntime)
 		local state = runtime.part:GetAttribute("PartState")
 		local definition = PartsCatalog[runtime.part.Name]
-		if not definition then
-			return
-		end
-
+		if not definition then return end
 		if state == "Installed" then
 			local allowed, blockerName = dependenciesRemoved(runtime)
 			runtime.prompt.ActionText = if allowed then "Remover" else "Bloqueado"
@@ -87,35 +88,30 @@ function PartRemovalService.setupCar(car: Model)
 	end
 
 	local function refreshAll()
-		for _, runtime in runtimes do
-			refreshPrompt(runtime)
-		end
+		for _, runtime in runtimes do refreshPrompt(runtime) end
 	end
 
 	local function placeRemoved(runtime: PartRuntime)
 		local part = runtime.part
 		local carPosition = car:GetPivot().Position
 		local groundHeight = part.Size.Y / 2 + 0.05
-		local slotZ = -5 + ((runtime.removalSlot - 1) * 2.4)
+		local row = math.floor((runtime.removalSlot - 1) / 6)
+		local column = (runtime.removalSlot - 1) % 6
 		part.Anchored = true
 		part.CanCollide = true
 		part.Massless = false
 		part.AssemblyLinearVelocity = Vector3.zero
 		part.AssemblyAngularVelocity = Vector3.zero
-		part.CFrame = CFrame.new(carPosition.X - 7.5, groundHeight, carPosition.Z + slotZ)
+		part.CFrame = CFrame.new(carPosition.X - 8 - row * 4, groundHeight, carPosition.Z - 6 + column * 2.5)
 	end
 
 	local function dropPart(player: Player, runtime: PartRuntime)
 		local root = getRoot(player)
-		if not root then
-			return
-		end
-
+		if not root then return end
 		if runtime.carryWeld then
 			runtime.carryWeld:Destroy()
 			runtime.carryWeld = nil
 		end
-
 		local part = runtime.part
 		part.Anchored = true
 		part.CanCollide = true
@@ -133,7 +129,6 @@ function PartRemovalService.setupCar(car: Model)
 		local part = instance :: BasePart
 		local definition = PartsCatalog[partId]
 		assert(definition, "Part catalog entry is missing: " .. partId)
-
 		part:SetAttribute("PartId", definition.Id)
 		part:SetAttribute("PartState", "Installed")
 		part:SetAttribute("CarrierUserId", 0)
@@ -156,17 +151,12 @@ function PartRemovalService.setupCar(car: Model)
 		runtimes[partId] = runtime
 
 		prompt.Triggered:Connect(function(player: Player)
-			if runtime.busy or not Players:FindFirstChild(player.Name) then
-				return
-			end
-
+			if runtime.busy or not Players:FindFirstChild(player.Name) then return end
 			local state = part:GetAttribute("PartState")
+
 			if state == "Installed" then
 				local allowed = dependenciesRemoved(runtime)
-				if not allowed or not isPlayerCloseEnough(player, part) then
-					return
-				end
-
+				if not allowed or not isPlayerCloseEnough(player, part) then return end
 				runtime.busy = true
 				part:SetAttribute("PartState", "Removed")
 				placeRemoved(runtime)
@@ -176,28 +166,20 @@ function PartRemovalService.setupCar(car: Model)
 			end
 
 			if state == "Removed" then
-				if player:GetAttribute("CarriedPartId") ~= nil or not isPlayerCloseEnough(player, part) then
-					return
-				end
-
+				if player:GetAttribute("CarriedPartId") ~= nil or not isPlayerCloseEnough(player, part) then return end
 				local root = getRoot(player)
-				if not root then
-					return
-				end
-
+				if not root then return end
 				runtime.busy = true
 				part.Anchored = false
 				part.CanCollide = false
 				part.Massless = true
 				part.CFrame = root.CFrame * CARRY_OFFSET
-
 				local weld = Instance.new("WeldConstraint")
 				weld.Name = "CarryWeld"
 				weld.Part0 = root
 				weld.Part1 = part
 				weld.Parent = part
 				runtime.carryWeld = weld
-
 				part:SetAttribute("PartState", "Carried")
 				part:SetAttribute("CarrierUserId", player.UserId)
 				player:SetAttribute("CarriedPartId", definition.Id)
