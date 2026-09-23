@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
 local TrainingCarConfig = require(ReplicatedStorage.Shared.TrainingCarConfig)
+local ToolUpgradeConfig = require(ReplicatedStorage.Shared.ToolUpgradeConfig)
 local PartRemovalService = {}
 
 type ActiveCarry = {
@@ -49,6 +50,15 @@ end
 function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroundY: number?)
 	local runtimes: {[string]: PartRuntime} = {}
 
+	local function getRemovalSeconds(defaultSeconds: number): number
+		if not ownerUserId then return defaultSeconds end
+		local owner = Players:GetPlayerByUserId(ownerUserId)
+		local level = owner and owner:GetAttribute("ToolLevel")
+		if typeof(level) ~= "number" then return defaultSeconds end
+		local toolDefinition = ToolUpgradeConfig.Get(level)
+		return if toolDefinition then toolDefinition.RemovalSeconds else defaultSeconds
+	end
+
 	local function dependenciesRemoved(runtime: PartRuntime): (boolean, string?)
 		for _, dependencyId in runtime.dependencies do
 			local dependency = car:FindFirstChild(dependencyId)
@@ -69,7 +79,7 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 			local allowed, blockerName = dependenciesRemoved(runtime)
 			runtime.prompt.ActionText = if allowed then "Remover" else "Bloqueado"
 			runtime.prompt.ObjectText = if allowed then definition.DisplayName else "Remova " .. (blockerName or "a peça anterior")
-			runtime.prompt.HoldDuration = if allowed then definition.RemovalSeconds else 0
+			runtime.prompt.HoldDuration = if allowed then getRemovalSeconds(definition.RemovalSeconds) else 0
 		elseif state == "Removed" then
 			runtime.prompt.ActionText = "Pegar"
 			runtime.prompt.ObjectText = definition.DisplayName
@@ -206,6 +216,14 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 				dropPart(player, runtime)
 				runtime.busy = false
 			end
+		end)
+	end
+
+	local owner = if ownerUserId then Players:GetPlayerByUserId(ownerUserId) else nil
+	if owner then
+		local toolLevelConnection = owner:GetAttributeChangedSignal("ToolLevel"):Connect(refreshAll)
+		car.Destroying:Once(function()
+			toolLevelConnection:Disconnect()
 		end)
 	end
 	refreshAll()
