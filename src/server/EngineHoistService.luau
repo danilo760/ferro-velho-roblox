@@ -4,16 +4,24 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
-local EngineHoistService = {}
-local HOIST_HOME = CFrame.new(9, 1, -37)
-local activeHoist: Model? = nil
-local activeEngine: BasePart? = nil
 
-local function createHoistPart(model: Model, name: string, size: Vector3, relativePosition: Vector3, color: Color3): Part
+local EngineHoistService = {}
+
+type HoistRuntime = {
+	OwnerUserId: number,
+	Home: CFrame,
+	Model: Model,
+	Engine: BasePart,
+	MoveWeld: WeldConstraint?,
+}
+
+local runtimes: {[number]: HoistRuntime} = {}
+
+local function createPart(model: Model, home: CFrame, name: string, size: Vector3, offset: Vector3, color: Color3): Part
 	local part = Instance.new("Part")
 	part.Name = name
 	part.Size = size
-	part.CFrame = HOIST_HOME * CFrame.new(relativePosition)
+	part.CFrame = home * CFrame.new(offset)
 	part.Anchored = true
 	part.CanCollide = true
 	part.Material = Enum.Material.Metal
@@ -24,40 +32,39 @@ local function createHoistPart(model: Model, name: string, size: Vector3, relati
 	return part
 end
 
-local function weldToBase(base: BasePart, part: BasePart)
-	local weld = Instance.new("WeldConstraint")
-	weld.Name = "HoistWeld"
-	weld.Part0 = base
-	weld.Part1 = part
-	weld.Parent = part
+local function weld(base: BasePart, part: BasePart, name: string)
+	local joint = Instance.new("WeldConstraint")
+	joint.Name = name
+	joint.Part0 = base
+	joint.Part1 = part
+	joint.Parent = part
 end
 
-local function createHoist(): Model
-	local old = Workspace:FindFirstChild("EngineHoist01")
-	if old then old:Destroy() end
+local function createHoist(home: CFrame, ownerUserId: number): Model
 	local model = Instance.new("Model")
-	model.Name = "EngineHoist01"
-	model:SetAttribute("State", "Empty")
+	model.Name = "EngineHoist_" .. ownerUserId
+	model:SetAttribute("OwnerUserId", ownerUserId)
 	model:SetAttribute("CarrierUserId", 0)
+	model:SetAttribute("State", "Empty")
 	local red = Color3.fromRGB(190, 45, 38)
 	local dark = Color3.fromRGB(35, 35, 38)
-	local base = createHoistPart(model, "Base", Vector3.new(5, 0.45, 6), Vector3.new(0, 0, 0), red)
+	local base = createPart(model, home, "Base", Vector3.new(5, 0.45, 6), Vector3.zero, red)
 	model.PrimaryPart = base
 	for _, data in {
 		{ "Upright", Vector3.new(0.5, 5.5, 0.5), Vector3.new(0, 2.75, 2.3), red },
 		{ "Boom", Vector3.new(0.45, 0.45, 5.5), Vector3.new(0, 5.3, -0.25), red },
 		{ "Hook", Vector3.new(0.25, 2.2, 0.25), Vector3.new(0, 4.2, -2.8), dark },
 	} do
-		local part = createHoistPart(model, data[1] :: string, data[2] :: Vector3, data[3] :: Vector3, data[4] :: Color3)
-		weldToBase(base, part)
+		local part = createPart(model, home, data[1] :: string, data[2] :: Vector3, data[3] :: Vector3, data[4] :: Color3)
+		weld(base, part, "HoistWeld")
 	end
 	for index, offset in {
 		Vector3.new(-2.1, -0.45, -2.3), Vector3.new(2.1, -0.45, -2.3),
 		Vector3.new(-2.1, -0.45, 2.3), Vector3.new(2.1, -0.45, 2.3),
 	} do
-		local wheel = createHoistPart(model, "Caster" .. index, Vector3.new(0.7, 0.7, 0.7), offset, dark)
+		local wheel = createPart(model, home, "Caster" .. index, Vector3.new(0.7, 0.7, 0.7), offset, dark)
 		wheel.Shape = Enum.PartType.Ball
-		weldToBase(base, wheel)
+		weld(base, wheel, "HoistWeld")
 	end
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "HoistPrompt"
@@ -72,43 +79,48 @@ local function createHoist(): Model
 	return model
 end
 
-local function dependencyRemoved(car: Model, partName: string): boolean
-	local part = car:FindFirstChild(partName)
+local function dependencyRemoved(car: Model, name: string): boolean
+	local part = car:FindFirstChild(name)
 	return part == nil or (part:IsA("BasePart") and part:GetAttribute("PartState") ~= "Installed")
 end
 
-function EngineHoistService.start(car: Model)
+local function setAnchored(model: Model, value: boolean)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then descendant.Anchored = value end
+	end
+end
+
+function EngineHoistService.start(car: Model, home: CFrame, ownerUserId: number)
+	EngineHoistService.RemoveForOwner(ownerUserId)
 	local engine = car:FindFirstChild("Engine")
 	assert(engine and engine:IsA("BasePart"), "Training car Engine is missing")
 	local definition = PartsCatalog.Engine
-	local hoist = createHoist()
-	activeHoist = hoist
-	activeEngine = engine
+	local hoist = createHoist(home, ownerUserId)
 	local base = hoist.PrimaryPart :: BasePart
 	local hoistPrompt = base:FindFirstChild("HoistPrompt") :: ProximityPrompt
+	local runtime: HoistRuntime = {
+		OwnerUserId = ownerUserId, Home = home, Model = hoist, Engine = engine, MoveWeld = nil,
+	}
+	runtimes[ownerUserId] = runtime
+
 	engine:SetAttribute("PartId", definition.Id)
 	engine:SetAttribute("PartState", "Installed")
 	engine:SetAttribute("CarrierUserId", 0)
+	engine:SetAttribute("OwnerUserId", ownerUserId)
 
-	local enginePoint = Instance.new("Attachment")
-	enginePoint.Name = "EngineInteractionPoint"
-	enginePoint.Position = Vector3.new(0, engine.Size.Y / 2 + 0.8, 0)
-	enginePoint.Parent = engine
-
+	local point = Instance.new("Attachment")
+	point.Position = Vector3.new(0, engine.Size.Y / 2 + 0.8, 0)
+	point.Parent = engine
 	local enginePrompt = Instance.new("ProximityPrompt")
 	enginePrompt.Name = "EnginePrompt"
 	enginePrompt.KeyboardKeyCode = Enum.KeyCode.E
 	enginePrompt.MaxActivationDistance = 11
 	enginePrompt.RequiresLineOfSight = false
-	enginePrompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton
-	enginePrompt.Parent = enginePoint
+	enginePrompt.Parent = point
 
-	local function refreshEnginePrompt()
+	local function refresh()
 		if engine:GetAttribute("PartState") ~= "Installed" then enginePrompt.Enabled = false return end
-		if not dependencyRemoved(car, "Hood") then
-			enginePrompt.Enabled = false
-			return
-		end
+		if not dependencyRemoved(car, "Hood") then enginePrompt.Enabled = false return end
 		enginePrompt.Enabled = true
 		if not dependencyRemoved(car, "Battery") then
 			enginePrompt.ActionText = "Bloqueado"
@@ -121,23 +133,16 @@ function EngineHoistService.start(car: Model)
 		end
 	end
 
-	refreshEnginePrompt()
+	refresh()
 	for _, dependencyName in { "Hood", "Battery" } do
 		local dependency = car:FindFirstChild(dependencyName)
-		if dependency then dependency:GetAttributeChangedSignal("PartState"):Connect(refreshEnginePrompt) end
+		if dependency then dependency:GetAttributeChangedSignal("PartState"):Connect(refresh) end
 	end
 
 	local busy = false
-	local moveWeld: WeldConstraint? = nil
-
-	local function setAnchored(value: boolean)
-		for _, descendant in hoist:GetDescendants() do
-			if descendant:IsA("BasePart") then descendant.Anchored = value end
-		end
-	end
-
-	enginePrompt.Triggered:Connect(function(player: Player)
-		if busy or not dependencyRemoved(car, "Hood") or not dependencyRemoved(car, "Battery") then return end
+	enginePrompt.Triggered:Connect(function(player)
+		if player.UserId ~= ownerUserId or busy then return end
+		if not dependencyRemoved(car, "Hood") or not dependencyRemoved(car, "Battery") then return end
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if not root or not root:IsA("BasePart") or (root.Position - engine.Position).Magnitude > 12 then return end
 		busy = true
@@ -146,11 +151,7 @@ function EngineHoistService.start(car: Model)
 		engine.CanCollide = false
 		engine.Massless = true
 		engine.CFrame = base.CFrame * CFrame.new(0, 2.1, 0)
-		local engineWeld = Instance.new("WeldConstraint")
-		engineWeld.Name = "EngineToHoist"
-		engineWeld.Part0 = base
-		engineWeld.Part1 = engine
-		engineWeld.Parent = engine
+		weld(base, engine, "EngineToHoist")
 		engine:SetAttribute("PartState", "OnHoist")
 		hoist:SetAttribute("State", "Loaded")
 		hoistPrompt.ActionText = "Empurrar"
@@ -159,23 +160,23 @@ function EngineHoistService.start(car: Model)
 		busy = false
 	end)
 
-	hoistPrompt.Triggered:Connect(function(player: Player)
-		if busy then return end
+	hoistPrompt.Triggered:Connect(function(player)
+		if player.UserId ~= ownerUserId or busy then return end
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if not root or not root:IsA("BasePart") then return end
 		local state = hoist:GetAttribute("State")
-
 		if state == "Loaded" or state == "Empty" then
 			if (root.Position - base.Position).Magnitude > 12 then return end
 			if state == "Loaded" and player:GetAttribute("CarriedPartId") ~= nil then return end
 			busy = true
 			hoist:PivotTo(root.CFrame * CFrame.new(0, -2.3, -6))
-			setAnchored(false)
-			moveWeld = Instance.new("WeldConstraint")
+			setAnchored(hoist, false)
+			local moveWeld = Instance.new("WeldConstraint")
 			moveWeld.Name = "CarryWeld"
 			moveWeld.Part0 = root
 			moveWeld.Part1 = base
 			moveWeld.Parent = base
+			runtime.MoveWeld = moveWeld
 			hoist:SetAttribute("CarrierUserId", player.UserId)
 			if state == "Loaded" then
 				engine:SetAttribute("PartState", "Carried")
@@ -187,19 +188,11 @@ function EngineHoistService.start(car: Model)
 			end
 			hoistPrompt.ActionText = "Soltar guincho"
 			busy = false
-			return
-		end
-
-		if (state == "Moving" or state == "MovingEmpty") and hoist:GetAttribute("CarrierUserId") == player.UserId then
+		elseif state == "Moving" or state == "MovingEmpty" then
+			if hoist:GetAttribute("CarrierUserId") ~= player.UserId then return end
 			busy = true
-			if moveWeld then
-				moveWeld:Destroy()
-				moveWeld = nil
-			else
-				local existingWeld = base:FindFirstChild("CarryWeld")
-				if existingWeld then existingWeld:Destroy() end
-			end
-			setAnchored(true)
+			if runtime.MoveWeld then runtime.MoveWeld:Destroy() runtime.MoveWeld = nil end
+			setAnchored(hoist, true)
 			hoist:SetAttribute("CarrierUserId", 0)
 			if state == "Moving" and engine.Parent then
 				engine:SetAttribute("PartState", "OnHoist")
@@ -216,61 +209,54 @@ function EngineHoistService.start(car: Model)
 	end)
 end
 
+function EngineHoistService.CompleteEngineSale(player: Player)
+	local runtime = runtimes[player.UserId]
+	if not runtime then return end
+	if runtime.MoveWeld then runtime.MoveWeld:Destroy() runtime.MoveWeld = nil end
+	setAnchored(runtime.Model, true)
+	runtime.Model:SetAttribute("State", "Empty")
+	runtime.Model:SetAttribute("CarrierUserId", 0)
+	local base = runtime.Model.PrimaryPart
+	local prompt = base and base:FindFirstChild("HoistPrompt")
+	if prompt and prompt:IsA("ProximityPrompt") then
+		prompt.ActionText = "Empurrar vazio"
+		prompt.Enabled = true
+	end
+end
+
 function EngineHoistService.ReleasePlayer(player: Player)
-	local hoist = activeHoist
-	if not hoist or hoist:GetAttribute("CarrierUserId") ~= player.UserId then return end
-	local base = hoist.PrimaryPart
-	if not base then return end
-
-	local carryWeld = base:FindFirstChild("CarryWeld")
-	if carryWeld then carryWeld:Destroy() end
-	for _, descendant in hoist:GetDescendants() do
-		if descendant:IsA("BasePart") then descendant.Anchored = true end
-	end
-	hoist:PivotTo(HOIST_HOME)
-	hoist:SetAttribute("CarrierUserId", 0)
-
-	local engine = activeEngine
-	local prompt = base:FindFirstChild("HoistPrompt")
-	if engine and engine.Parent and engine:GetAttribute("PartState") == "Carried" then
-		engine:SetAttribute("PartState", "OnHoist")
-		engine:SetAttribute("CarrierUserId", 0)
-		hoist:SetAttribute("State", "Loaded")
-		if prompt and prompt:IsA("ProximityPrompt") then
-			prompt.ActionText = "Empurrar"
-			prompt.ObjectText = "Guincho com motor"
-			prompt.Enabled = true
-		end
+	local runtime = runtimes[player.UserId]
+	if not runtime or runtime.Model:GetAttribute("CarrierUserId") ~= player.UserId then return end
+	if runtime.MoveWeld then runtime.MoveWeld:Destroy() runtime.MoveWeld = nil end
+	setAnchored(runtime.Model, true)
+	runtime.Model:PivotTo(runtime.Home)
+	runtime.Model:SetAttribute("CarrierUserId", 0)
+	if runtime.Engine.Parent and runtime.Engine:GetAttribute("PartState") == "Carried" then
+		runtime.Engine:SetAttribute("PartState", "OnHoist")
+		runtime.Engine:SetAttribute("CarrierUserId", 0)
+		runtime.Model:SetAttribute("State", "Loaded")
 	else
-		hoist:SetAttribute("State", "Empty")
-		if prompt and prompt:IsA("ProximityPrompt") then
-			prompt.ActionText = "Empurrar vazio"
-			prompt.ObjectText = "Guincho de motor"
-			prompt.Enabled = true
-		end
+		runtime.Model:SetAttribute("State", "Empty")
 	end
-
 	player:SetAttribute("CarriedPartId", nil)
 end
 
-function EngineHoistService.ResetForCycle()
-	local hoist = activeHoist
-	if not hoist or not hoist.Parent then return end
-	local base = hoist.PrimaryPart
-	if not base then return end
-	local carryWeld = base:FindFirstChild("CarryWeld")
-	if carryWeld then carryWeld:Destroy() end
-	for _, descendant in hoist:GetDescendants() do
-		if descendant:IsA("BasePart") then descendant.Anchored = true end
-	end
-	hoist:PivotTo(HOIST_HOME)
-	hoist:SetAttribute("State", "Empty")
-	hoist:SetAttribute("CarrierUserId", 0)
-	local prompt = base:FindFirstChild("HoistPrompt")
-	if prompt and prompt:IsA("ProximityPrompt") then
-		prompt.ActionText = "Aguardando próximo motor"
-		prompt.Enabled = false
-	end
+function EngineHoistService.ResetForCycle(ownerUserId: number)
+	local runtime = runtimes[ownerUserId]
+	if not runtime then return end
+	if runtime.MoveWeld then runtime.MoveWeld:Destroy() runtime.MoveWeld = nil end
+	setAnchored(runtime.Model, true)
+	runtime.Model:PivotTo(runtime.Home)
+	runtime.Model:SetAttribute("State", "Empty")
+	runtime.Model:SetAttribute("CarrierUserId", 0)
+end
+
+function EngineHoistService.RemoveForOwner(ownerUserId: number)
+	local runtime = runtimes[ownerUserId]
+	if not runtime then return end
+	if runtime.MoveWeld then runtime.MoveWeld:Destroy() end
+	if runtime.Model.Parent then runtime.Model:Destroy() end
+	runtimes[ownerUserId] = nil
 end
 
 return EngineHoistService
