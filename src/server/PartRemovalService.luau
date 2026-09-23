@@ -55,9 +55,12 @@ function PartRemovalService.setupHood(car: Model)
 		removing = true
 		hood:SetAttribute("PartState", "Removed")
 		prompt.Enabled = false
-		hood.Anchored = false
-		hood.AssemblyLinearVelocity = Vector3.new(0, 3, -2)
-		hood.AssemblyAngularVelocity = Vector3.new(0, 0, 0.8)
+
+		local removedPosition = hood.Position + Vector3.new(-6.5, -3.4, 1.5)
+		hood.Anchored = true
+		hood.AssemblyLinearVelocity = Vector3.zero
+		hood.AssemblyAngularVelocity = Vector3.zero
+		hood.CFrame = CFrame.new(removedPosition)
 	end)
 end
 
