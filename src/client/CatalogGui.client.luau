@@ -12,6 +12,37 @@ local AuctionCatalog = require(ReplicatedStorage.Shared.AuctionCatalog)
 
 type CatalogOffer = AuctionCatalog.CatalogOffer
 
+export type BoxSummary = {
+	BoxIndex: number,
+	CurrentCarName: string,
+	CycleValue: number,
+	TotalParts: number,
+	ScrapMultiplier: number,
+	IsTrainingCar: boolean,
+	HasPending: boolean,
+	PendingCarName: string?,
+}
+
+-- Estados compartilhados do catálogo declarados previamente no escopo local
+local lastOffers: {CatalogOffer} = {}
+local lastPurchasedOffers: {[string]: boolean} = {}
+local lastBoxes: {[number]: BoxSummary} = {}
+local selectedBoxIndex: number = 1
+
+local pendingOffer: CatalogOffer? = nil
+local pendingBoxIndex: number? = nil
+local pendingBuyBtn: TextButton? = nil
+local isConfirmingPurchase: boolean = false
+
+local updateBoxBar: () -> ()
+local refreshUI: (({CatalogOffer}, {[string]: boolean}?, {[number]: BoxSummary}?) -> ())? = nil
+local fetchCatalog: () -> ()
+local updateTicketDisplay: () -> ()
+local clearPendingModalState: () -> ()
+local hideConfirmModal: () -> ()
+local showConfirmModal: (offer: CatalogOffer, boxIndex: number, buyBtn: TextButton?) -> ()
+local selectBox: (boxIndex: number) -> boolean
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "CatalogGui"
 screenGui.ResetOnSpawn = false
@@ -163,10 +194,9 @@ boxBarLabel.TextSize = 14
 boxBarLabel.TextXAlignment = Enum.TextXAlignment.Left
 boxBarLabel.Parent = boxBar
 
-local selectedBoxIndex = 1
 local boxButtons: {[number]: TextButton} = {}
 
-local function updateBoxBar()
+updateBoxBar = function()
 	local unlocked = player:GetAttribute("UnlockedBoxes")
 	local maxUnlocked = if typeof(unlocked) == "number" then math.clamp(unlocked, 1, 3) else 1
 
@@ -199,7 +229,24 @@ local function updateBoxBar()
 	end
 end
 
-local refreshUI: (({CatalogOffer}, {[string]: boolean}?, {[number]: BoxSummary}?) -> ())? = nil
+-- Função local única e centralizada para selecionar Box com validação rigorosa
+selectBox = function(boxIndex: number): boolean
+	if typeof(boxIndex) ~= "number" or boxIndex % 1 ~= 0 or boxIndex < 1 or boxIndex > 3 then
+		return false
+	end
+	local unlocked = player:GetAttribute("UnlockedBoxes")
+	local maxUnlocked = if typeof(unlocked) == "number" then math.clamp(unlocked, 1, 3) else 1
+	if boxIndex > maxUnlocked then
+		return false
+	end
+
+	selectedBoxIndex = boxIndex
+	updateBoxBar()
+	if refreshUI and lastOffers and #lastOffers > 0 then
+		refreshUI(lastOffers, lastPurchasedOffers, lastBoxes)
+	end
+	return true
+end
 
 for b = 1, 3 do
 	local btn = Instance.new("TextButton")
@@ -219,99 +266,11 @@ for b = 1, 3 do
 	btnCorner.Parent = btn
 
 	btn.MouseButton1Click:Connect(function()
-		local unlocked = player:GetAttribute("UnlockedBoxes")
-		local maxUnlocked = if typeof(unlocked) == "number" then math.clamp(unlocked, 1, 3) else 1
-		if b <= maxUnlocked then
-			selectedBoxIndex = b
-			updateBoxBar()
-			if refreshUI and #lastOffers > 0 then
-				refreshUI(lastOffers, lastPurchasedOffers, lastBoxes)
-			end
-		end
+		selectBox(b)
 	end)
 
 	boxButtons[b] = btn
 end
-
--- Confirmation Modal for Worse Purchases
-local confirmModal = Instance.new("Frame")
-confirmModal.Name = "ConfirmWorseModal"
-confirmModal.Size = UDim2.fromOffset(480, 200)
-confirmModal.AnchorPoint = Vector2.new(0.5, 0.5)
-confirmModal.Position = UDim2.fromScale(0.5, 0.5)
-confirmModal.BackgroundColor3 = Color3.fromRGB(18, 22, 28)
-confirmModal.BorderSizePixel = 0
-confirmModal.ZIndex = 50
-confirmModal.Visible = false
-confirmModal.Parent = window
-
-local confirmCorner = Instance.new("UICorner")
-confirmCorner.CornerRadius = UDim.new(0, 12)
-confirmCorner.Parent = confirmModal
-
-local confirmStroke = Instance.new("UIStroke")
-confirmStroke.Color = Color3.fromRGB(240, 140, 45)
-confirmStroke.Thickness = 2
-confirmStroke.Parent = confirmModal
-
-local confirmTitle = Instance.new("TextLabel")
-confirmTitle.Name = "Title"
-confirmTitle.Size = UDim2.new(1, -32, 0, 28)
-confirmTitle.Position = UDim2.fromOffset(16, 12)
-confirmTitle.BackgroundTransparency = 1
-confirmTitle.Text = "⚠️ ATENÇÃO: RENDIMENTO MENOR"
-confirmTitle.TextColor3 = Color3.fromRGB(255, 160, 50)
-confirmTitle.Font = Enum.Font.GothamBlack
-confirmTitle.TextSize = 16
-confirmTitle.ZIndex = 51
-confirmTitle.Parent = confirmModal
-
-local confirmMsg = Instance.new("TextLabel")
-confirmMsg.Name = "Message"
-confirmMsg.Size = UDim2.new(1, -32, 0, 75)
-confirmMsg.Position = UDim2.fromOffset(16, 42)
-confirmMsg.BackgroundTransparency = 1
-confirmMsg.Text = ""
-confirmMsg.TextColor3 = Color3.fromRGB(230, 235, 245)
-confirmMsg.Font = Enum.Font.Gotham
-confirmMsg.TextSize = 13
-confirmMsg.TextWrapped = true
-confirmMsg.ZIndex = 51
-confirmMsg.Parent = confirmModal
-
-local cancelBtn = Instance.new("TextButton")
-cancelBtn.Name = "CancelBtn"
-cancelBtn.Size = UDim2.fromOffset(170, 40)
-cancelBtn.Position = UDim2.fromOffset(36, 135)
-cancelBtn.BackgroundColor3 = Color3.fromRGB(55, 60, 72)
-cancelBtn.BorderSizePixel = 0
-cancelBtn.Text = "Cancelar"
-cancelBtn.TextColor3 = Color3.new(1, 1, 1)
-cancelBtn.Font = Enum.Font.GothamBold
-cancelBtn.TextSize = 14
-cancelBtn.ZIndex = 51
-cancelBtn.Parent = confirmModal
-
-local cancelCorner = Instance.new("UICorner")
-cancelCorner.CornerRadius = UDim.new(0, 8)
-cancelCorner.Parent = cancelBtn
-
-local proceedBtn = Instance.new("TextButton")
-proceedBtn.Name = "ProceedBtn"
-proceedBtn.Size = UDim2.fromOffset(210, 40)
-proceedBtn.Position = UDim2.new(1, -246, 0, 135)
-proceedBtn.BackgroundColor3 = Color3.fromRGB(200, 55, 50)
-proceedBtn.BorderSizePixel = 0
-proceedBtn.Text = "Comprar mesmo assim"
-proceedBtn.TextColor3 = Color3.new(1, 1, 1)
-proceedBtn.Font = Enum.Font.GothamBlack
-proceedBtn.TextSize = 13
-proceedBtn.ZIndex = 51
-proceedBtn.Parent = confirmModal
-
-local proceedCorner = Instance.new("UICorner")
-proceedCorner.CornerRadius = UDim.new(0, 8)
-proceedCorner.Parent = proceedBtn
 
 -- Scroll Frame for Offers
 local scrollFrame = Instance.new("ScrollingFrame")
@@ -324,6 +283,7 @@ scrollFrame.ScrollBarThickness = 6
 scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(240, 180, 45)
 scrollFrame.CanvasSize = UDim2.fromOffset(0, 0)
 scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.X
+scrollFrame.ZIndex = 1
 scrollFrame.Parent = window
 
 local offersLayout = Instance.new("UIListLayout")
@@ -331,6 +291,114 @@ offersLayout.FillDirection = Enum.FillDirection.Horizontal
 offersLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 offersLayout.Padding = UDim.new(0, 12)
 offersLayout.Parent = scrollFrame
+
+-- Camada de bloqueio cobrindo toda a janela atrás do modal (impede cliques nos cards)
+local modalOverlay = Instance.new("TextButton")
+modalOverlay.Name = "ModalOverlay"
+modalOverlay.Size = UDim2.fromScale(1, 1)
+modalOverlay.Position = UDim2.fromScale(0, 0)
+modalOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+modalOverlay.BackgroundTransparency = 0.55
+modalOverlay.BorderSizePixel = 0
+modalOverlay.ZIndex = 40
+modalOverlay.Visible = false
+modalOverlay.Active = true
+modalOverlay.AutoButtonColor = false
+modalOverlay.Text = ""
+modalOverlay.Parent = window
+
+-- Confirmation Modal for Worse Purchases (Responsivo com limite máximo de 480px)
+local confirmModal = Instance.new("Frame")
+confirmModal.Name = "ConfirmWorseModal"
+confirmModal.Size = UDim2.new(0.85, 0, 0, 220)
+confirmModal.AnchorPoint = Vector2.new(0.5, 0.5)
+confirmModal.Position = UDim2.fromScale(0.5, 0.5)
+confirmModal.BackgroundColor3 = Color3.fromRGB(18, 22, 28)
+confirmModal.BorderSizePixel = 0
+confirmModal.ZIndex = 50
+confirmModal.Visible = false
+confirmModal.Parent = window
+
+local confirmConstraint = Instance.new("UISizeConstraint")
+confirmConstraint.MaxSize = Vector2.new(480, 260)
+confirmConstraint.MinSize = Vector2.new(280, 180)
+confirmConstraint.Parent = confirmModal
+
+local confirmCorner = Instance.new("UICorner")
+confirmCorner.CornerRadius = UDim.new(0, 12)
+confirmCorner.Parent = confirmModal
+
+local confirmStroke = Instance.new("UIStroke")
+confirmStroke.Color = Color3.fromRGB(240, 140, 45)
+confirmStroke.Thickness = 2
+confirmStroke.Parent = confirmModal
+
+local confirmTitle = Instance.new("TextLabel")
+confirmTitle.Name = "Title"
+confirmTitle.Size = UDim2.new(1, -24, 0, 28)
+confirmTitle.Position = UDim2.fromOffset(12, 10)
+confirmTitle.BackgroundTransparency = 1
+confirmTitle.Text = "⚠️ ATENÇÃO: RENDIMENTO MENOR"
+confirmTitle.TextColor3 = Color3.fromRGB(255, 160, 50)
+confirmTitle.Font = Enum.Font.GothamBlack
+confirmTitle.TextSize = 15
+confirmTitle.ZIndex = 51
+confirmTitle.Parent = confirmModal
+
+local confirmMsg = Instance.new("TextLabel")
+confirmMsg.Name = "Message"
+confirmMsg.Size = UDim2.new(1, -24, 0, 110)
+confirmMsg.Position = UDim2.fromOffset(12, 38)
+confirmMsg.BackgroundTransparency = 1
+confirmMsg.Text = ""
+confirmMsg.TextColor3 = Color3.fromRGB(230, 235, 245)
+confirmMsg.Font = Enum.Font.Gotham
+confirmMsg.TextSize = 12
+confirmMsg.TextWrapped = true
+confirmMsg.ZIndex = 51
+confirmMsg.Parent = confirmModal
+
+local btnRow = Instance.new("Frame")
+btnRow.Name = "ButtonRow"
+btnRow.Size = UDim2.new(1, -24, 0, 42)
+btnRow.Position = UDim2.new(0, 12, 1, -52)
+btnRow.BackgroundTransparency = 1
+btnRow.ZIndex = 51
+btnRow.Parent = confirmModal
+
+local cancelBtn = Instance.new("TextButton")
+cancelBtn.Name = "CancelBtn"
+cancelBtn.Size = UDim2.new(0.48, -4, 1, 0)
+cancelBtn.Position = UDim2.new(0, 0, 0, 0)
+cancelBtn.BackgroundColor3 = Color3.fromRGB(55, 60, 72)
+cancelBtn.BorderSizePixel = 0
+cancelBtn.Text = "Cancelar"
+cancelBtn.TextColor3 = Color3.new(1, 1, 1)
+cancelBtn.Font = Enum.Font.GothamBold
+cancelBtn.TextSize = 13
+cancelBtn.ZIndex = 52
+cancelBtn.Parent = btnRow
+
+local cancelCorner = Instance.new("UICorner")
+cancelCorner.CornerRadius = UDim.new(0, 8)
+cancelCorner.Parent = cancelBtn
+
+local proceedBtn = Instance.new("TextButton")
+proceedBtn.Name = "ProceedBtn"
+proceedBtn.Size = UDim2.new(0.48, -4, 1, 0)
+proceedBtn.Position = UDim2.new(0.52, 4, 0, 0)
+proceedBtn.BackgroundColor3 = Color3.fromRGB(200, 55, 50)
+proceedBtn.BorderSizePixel = 0
+proceedBtn.Text = "Comprar mesmo assim"
+proceedBtn.TextColor3 = Color3.new(1, 1, 1)
+proceedBtn.Font = Enum.Font.GothamBlack
+proceedBtn.TextSize = 12
+proceedBtn.ZIndex = 52
+proceedBtn.Parent = btnRow
+
+local proceedCorner = Instance.new("UICorner")
+proceedCorner.CornerRadius = UDim.new(0, 8)
+proceedCorner.Parent = proceedBtn
 
 -- Footer Banner / Feedback
 local footer = Instance.new("Frame")
@@ -366,21 +434,6 @@ hintLabel.Parent = footer
 local refreshDeadline = os.time() + 300
 local updateHudTicketText: ((number, number) -> ())? = nil
 
-type BoxSummary = {
-	BoxIndex: number,
-	CurrentCarName: string,
-	CycleValue: number,
-	TotalParts: number,
-	ScrapMultiplier: number,
-	IsTrainingCar: boolean,
-	HasPending: boolean,
-	PendingCarName: string?,
-}
-
-local lastOffers: {CatalogOffer} = {}
-local lastPurchasedOffers: {[string]: boolean} = {}
-local lastBoxes: {[number]: BoxSummary} = {}
-
 local function getSelectedBoxSummary(): BoxSummary
 	if lastBoxes and lastBoxes[selectedBoxIndex] then
 		return lastBoxes[selectedBoxIndex]
@@ -397,7 +450,7 @@ local function getSelectedBoxSummary(): BoxSummary
 	}
 end
 
-local function updateTicketDisplay()
+updateTicketDisplay = function()
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local tickets = leaderstats and leaderstats:FindFirstChild("Tickets")
 	local count = if tickets and tickets:IsA("IntValue") then tickets.Value else (player:GetAttribute("AuctionTickets") or 0)
@@ -409,11 +462,37 @@ local function updateTicketDisplay()
 	if updateHudTicketText then updateHudTicketText(count, pointsCount) end
 end
 
-local fetchCatalog: () -> ()
+clearPendingModalState = function()
+	pendingOffer = nil
+	pendingBoxIndex = nil
+	pendingBuyBtn = nil
+end
 
-local pendingOffer: CatalogOffer? = nil
-local pendingBoxIndex: number? = nil
-local pendingBuyBtn: TextButton? = nil
+hideConfirmModal = function()
+	confirmModal.Visible = false
+	modalOverlay.Visible = false
+	clearPendingModalState()
+end
+
+showConfirmModal = function(offer: CatalogOffer, boxIndex: number, buyBtn: TextButton?)
+	pendingOffer = offer
+	pendingBoxIndex = boxIndex
+	pendingBuyBtn = buyBtn
+	local boxSum = getSelectedBoxSummary()
+	local diffVal = boxSum.CycleValue - offer.EstimatedScrapValue
+	confirmMsg.Text = string.format("Este veículo rende aproximadamente R$ %d a menos por ciclo que seu carro atual (%s, ~R$ %d).\n\nEle substituirá o veículo permanente do Box %d.\n\nDeseja continuar com a compra?", diffVal, boxSum.CurrentCarName, boxSum.CycleValue, boxIndex)
+	modalOverlay.Visible = true
+	confirmModal.Visible = true
+end
+
+local function updateBtnSafe(btn: TextButton?, text: string, bg: Color3?, fg: Color3?, active: boolean)
+	if btn and btn.Parent ~= nil then
+		btn.Text = text
+		if bg then btn.BackgroundColor3 = bg end
+		if fg then btn.TextColor3 = fg end
+		btn.Active = active
+	end
+end
 
 local function executePurchase(boxIndex: number, offerId: string, buyBtn: TextButton?)
 	local isLoaded = player:GetAttribute("DataLoaded")
@@ -427,10 +506,7 @@ local function executePurchase(boxIndex: number, offerId: string, buyBtn: TextBu
 	local buyRemote = ReplicatedStorage:FindFirstChild("BuyAuctionCatalogCar")
 	if not buyRemote or not buyRemote:IsA("RemoteFunction") then return end
 
-	if buyBtn then
-		buyBtn.Text = "Processando..."
-		buyBtn.Active = false
-	end
+	updateBtnSafe(buyBtn, "Processando...", nil, nil, false)
 
 	local callOk, success, message = pcall(function()
 		return buyRemote:InvokeServer(boxIndex, offerId)
@@ -438,51 +514,35 @@ local function executePurchase(boxIndex: number, offerId: string, buyBtn: TextBu
 	if not callOk then
 		feedbackLabel.Text = "Não foi possível concluir a compra. Tente novamente."
 		feedbackLabel.TextColor3 = Color3.fromRGB(255, 100, 90)
-		if buyBtn then
-			buyBtn.Active = true
-			buyBtn.Text = "Comprar"
-		end
+		updateBtnSafe(buyBtn, "Comprar", Color3.fromRGB(40, 150, 80), Color3.new(1, 1, 1), true)
 		return
 	end
 	feedbackLabel.Text = message
 	feedbackLabel.TextColor3 = if success then Color3.fromRGB(80, 255, 140) else Color3.fromRGB(255, 100, 90)
 
 	if success then
-		if buyBtn then
-			buyBtn.Text = "Adquirido"
-			buyBtn.BackgroundColor3 = Color3.fromRGB(55, 60, 70)
-			buyBtn.TextColor3 = Color3.fromRGB(160, 165, 175)
-			buyBtn.Active = false
-		end
+		updateBtnSafe(buyBtn, "Adquirido", Color3.fromRGB(55, 60, 70), Color3.fromRGB(160, 165, 175), false)
 		updateTicketDisplay()
 		updateBoxBar()
 		fetchCatalog()
 	else
-		if buyBtn then
-			buyBtn.Active = true
-			buyBtn.Text = "Comprar"
-		end
+		updateBtnSafe(buyBtn, "Comprar", Color3.fromRGB(40, 150, 80), Color3.new(1, 1, 1), true)
 	end
 end
 
-cancelBtn.MouseButton1Click:Connect(function()
-	confirmModal.Visible = false
-	pendingOffer = nil
-	pendingBoxIndex = nil
-	pendingBuyBtn = nil
-end)
+cancelBtn.MouseButton1Click:Connect(hideConfirmModal)
 
 proceedBtn.MouseButton1Click:Connect(function()
-	confirmModal.Visible = false
+	if isConfirmingPurchase then return end
+	isConfirmingPurchase = true
 	local offer = pendingOffer
 	local bIndex = pendingBoxIndex
 	local btn = pendingBuyBtn
-	pendingOffer = nil
-	pendingBoxIndex = nil
-	pendingBuyBtn = nil
+	hideConfirmModal()
 	if offer and bIndex then
 		executePurchase(bIndex, offer.OfferId, btn)
 	end
+	isConfirmingPurchase = false
 end)
 
 local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
@@ -565,53 +625,51 @@ local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
 	statsCorner.CornerRadius = UDim.new(0, 6)
 	statsCorner.Parent = statsFrame
 
-	local s1 = Instance.new("TextLabel")
-	s1.Size = UDim2.new(1, -8, 0, 18)
-	s1.Position = UDim2.fromOffset(4, 2)
-	s1.BackgroundTransparency = 1
-	local conservationMultiplier = offer.Conservation.Multiplier
-	local modelMultiplier = if conservationMultiplier > 0 then offer.ScrapMultiplier / conservationMultiplier else offer.ScrapMultiplier
-	s1.Text = string.format("⚡ Final %.1fx (%.1fx × %.1fx)", offer.ScrapMultiplier, modelMultiplier, conservationMultiplier)
-	s1.TextColor3 = Color3.fromRGB(255, 215, 60)
-	s1.Font = Enum.Font.GothamBold
-	s1.TextSize = 11
-	s1.TextXAlignment = Enum.TextXAlignment.Left
-	s1.Parent = statsFrame
+	local multLabel = Instance.new("TextLabel")
+	multLabel.Size = UDim2.new(1, -8, 0, 17)
+	multLabel.Position = UDim2.fromOffset(6, 2)
+	multLabel.BackgroundTransparency = 1
+	multLabel.Text = string.format("⚡ Final %.1fx (%.1fx × %.1fx)", offer.ScrapMultiplier, (AuctionCatalog.GetModel(offer.ModelId) and AuctionCatalog.GetModel(offer.ModelId).BaseMultiplier or 1), offer.Conservation.Multiplier)
+	multLabel.TextColor3 = Color3.fromRGB(255, 215, 60)
+	multLabel.Font = Enum.Font.GothamBold
+	multLabel.TextSize = 10
+	multLabel.TextXAlignment = Enum.TextXAlignment.Left
+	multLabel.Parent = statsFrame
 
-	local s2 = Instance.new("TextLabel")
-	s2.Size = UDim2.new(1, -8, 0, 18)
-	s2.Position = UDim2.fromOffset(4, 20)
-	s2.BackgroundTransparency = 1
-	s2.Text = string.format("🔧 Peças: %d • Atual: %d", offer.TotalPartsCount, currentBox.TotalParts)
-	s2.TextColor3 = Color3.fromRGB(140, 210, 255)
-	s2.Font = Enum.Font.Gotham
-	s2.TextSize = 10.5
-	s2.TextXAlignment = Enum.TextXAlignment.Left
-	s2.Parent = statsFrame
+	local partsLabel = Instance.new("TextLabel")
+	partsLabel.Size = UDim2.new(1, -8, 0, 17)
+	partsLabel.Position = UDim2.fromOffset(6, 20)
+	partsLabel.BackgroundTransparency = 1
+	partsLabel.Text = string.format("🔧 Peças: %d • Atual: %d", offer.TotalPartsCount, currentBox.TotalParts)
+	partsLabel.TextColor3 = Color3.fromRGB(180, 210, 240)
+	partsLabel.Font = Enum.Font.Gotham
+	partsLabel.TextSize = 10
+	partsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	partsLabel.Parent = statsFrame
 
-	local s3 = Instance.new("TextLabel")
-	s3.Size = UDim2.new(1, -8, 0, 18)
-	s3.Position = UDim2.fromOffset(4, 38)
-	s3.BackgroundTransparency = 1
-	s3.Text = string.format("💰 Ciclo: ~R$ %d", offer.EstimatedScrapValue)
-	s3.TextColor3 = Color3.fromRGB(80, 255, 140)
-	s3.Font = Enum.Font.GothamBold
-	s3.TextSize = 11
-	s3.TextXAlignment = Enum.TextXAlignment.Left
-	s3.Parent = statsFrame
+	local valLabel = Instance.new("TextLabel")
+	valLabel.Size = UDim2.new(1, -8, 0, 17)
+	valLabel.Position = UDim2.fromOffset(6, 38)
+	valLabel.BackgroundTransparency = 1
+	valLabel.Text = string.format("💰 Ciclo: ~R$ %d", offer.EstimatedScrapValue)
+	valLabel.TextColor3 = Color3.fromRGB(120, 230, 130)
+	valLabel.Font = Enum.Font.GothamBold
+	valLabel.TextSize = 10
+	valLabel.TextXAlignment = Enum.TextXAlignment.Left
+	valLabel.Parent = statsFrame
 
-	local s4 = Instance.new("TextLabel")
-	s4.Size = UDim2.new(1, -8, 0, 18)
-	s4.Position = UDim2.fromOffset(4, 56)
-	s4.BackgroundTransparency = 1
-	s4.Text = string.format("🎟️ +%d TicketPoints ao concluir", offer.TotalPartsCount)
-	s4.TextColor3 = Color3.fromRGB(255, 230, 130)
-	s4.Font = Enum.Font.Gotham
-	s4.TextSize = 10
-	s4.TextXAlignment = Enum.TextXAlignment.Left
-	s4.Parent = statsFrame
+	local pointsLabel = Instance.new("TextLabel")
+	pointsLabel.Size = UDim2.new(1, -8, 0, 17)
+	pointsLabel.Position = UDim2.fromOffset(6, 56)
+	pointsLabel.BackgroundTransparency = 1
+	pointsLabel.Text = string.format("🎟️ +%d TicketPoints ao concluir", offer.TotalPartsCount)
+	pointsLabel.TextColor3 = Color3.fromRGB(240, 190, 80)
+	pointsLabel.Font = Enum.Font.GothamBold
+	pointsLabel.TextSize = 10
+	pointsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	pointsLabel.Parent = statsFrame
 
-	-- Comparison Frame (Height 32)
+	-- Comparison Banner Frame (Height 32)
 	local compFrame = Instance.new("Frame")
 	compFrame.Size = UDim2.new(1, -16, 0, 32)
 	compFrame.Position = UDim2.fromOffset(8, 172)
@@ -707,12 +765,7 @@ local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
 
 		local boxSum = getSelectedBoxSummary()
 		if offer.EstimatedScrapValue < boxSum.CycleValue then
-			pendingOffer = offer
-			pendingBoxIndex = selectedBoxIndex
-			pendingBuyBtn = buyBtn
-			local diffVal = boxSum.CycleValue - offer.EstimatedScrapValue
-			confirmMsg.Text = string.format("Este veículo rende aproximadamente R$ %d a menos por ciclo que seu carro atual. Ele substituirá o veículo permanente do Box %d. Deseja continuar?", diffVal, selectedBoxIndex)
-			confirmModal.Visible = true
+			showConfirmModal(offer, selectedBoxIndex, buyBtn)
 		else
 			executePurchase(selectedBoxIndex, offer.OfferId, buyBtn)
 		end
@@ -720,6 +773,7 @@ local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
 end
 
 refreshUI = function(offers: {CatalogOffer}, purchasedOffers: {[string]: boolean}?, boxes: {[number]: BoxSummary}?)
+	hideConfirmModal()
 	local purchased = purchasedOffers or {}
 	lastOffers = offers
 	lastPurchasedOffers = purchased
@@ -738,6 +792,7 @@ refreshUI = function(offers: {CatalogOffer}, purchasedOffers: {[string]: boolean
 end
 
 fetchCatalog = function()
+	hideConfirmModal()
 	local getRemote = ReplicatedStorage:FindFirstChild("GetAuctionCatalog")
 	if getRemote and getRemote:IsA("RemoteFunction") then
 		local callOk, data = pcall(function()
@@ -767,6 +822,7 @@ local function openCatalog()
 end
 
 local function closeCatalog()
+	hideConfirmModal()
 	backdrop.Visible = false
 end
 
@@ -870,6 +926,7 @@ local catalogRefreshedEvent = ReplicatedStorage:WaitForChild("AuctionCatalogRefr
 if catalogRefreshedEvent and catalogRefreshedEvent:IsA("RemoteEvent") then
 	catalogRefreshedEvent.OnClientEvent:Connect(function(newDeadline: number)
 		refreshDeadline = newDeadline or (os.time() + 300)
+		hideConfirmModal()
 		if backdrop.Visible then
 			fetchCatalog()
 		end
@@ -897,12 +954,8 @@ if RunService:IsStudio() then
 				if offer.OfferId == offerId then
 					local boxSum = getSelectedBoxSummary()
 					if offer.EstimatedScrapValue < boxSum.CycleValue then
-						pendingOffer = offer
-						pendingBoxIndex = selectedBoxIndex
-						local diffVal = boxSum.CycleValue - offer.EstimatedScrapValue
-						confirmMsg.Text = string.format("Este veículo rende aproximadamente R$ %d a menos por ciclo que seu carro atual. Ele substituirá o veículo permanente do Box %d. Deseja continuar?", diffVal, selectedBoxIndex)
-						confirmModal.Visible = true
-						return { Triggered = "Modal", ModalVisible = true, Message = confirmMsg.Text }
+						showConfirmModal(offer, selectedBoxIndex, nil)
+						return { Triggered = "Modal", ModalVisible = confirmModal.Visible, Message = confirmMsg.Text }
 					else
 						executePurchase(selectedBoxIndex, offer.OfferId, nil)
 						return { Triggered = "DirectPurchase" }
@@ -912,29 +965,29 @@ if RunService:IsStudio() then
 			return { Error = "Offer not found" }
 		elseif action == "ClickModalCancel" then
 			local wasOpen = confirmModal.Visible
-			confirmModal.Visible = false
-			pendingOffer = nil
-			pendingBoxIndex = nil
-			pendingBuyBtn = nil
+			hideConfirmModal()
 			return { Cancelled = wasOpen, ModalVisible = confirmModal.Visible }
 		elseif action == "ClickModalProceed" then
+			if isConfirmingPurchase then return { Proceeded = false, Reason = "Debounce" } end
+			isConfirmingPurchase = true
 			local offer = pendingOffer
 			local bIndex = pendingBoxIndex
-			confirmModal.Visible = false
-			pendingOffer = nil
-			pendingBoxIndex = nil
-			pendingBuyBtn = nil
+			hideConfirmModal()
 			if offer and bIndex then
 				executePurchase(bIndex, offer.OfferId, nil)
+				isConfirmingPurchase = false
 				return { Proceeded = true, OfferId = offer.OfferId, ModalVisible = confirmModal.Visible }
 			end
+			isConfirmingPurchase = false
 			return { Proceeded = false }
 		elseif action == "SelectBox" then
-			selectBox(args.BoxIndex)
-			return { SelectedBoxIndex = selectedBoxIndex }
+			local ok = selectBox(args.BoxIndex)
+			return { Success = ok, SelectedBoxIndex = selectedBoxIndex }
 		elseif action == "GetModalState" then
 			return {
 				Visible = confirmModal.Visible,
+				OverlayVisible = modalOverlay.Visible,
+				OverlayActive = modalOverlay.Active,
 				Title = confirmTitle.Text,
 				Message = confirmMsg.Text,
 				PendingOfferId = pendingOffer and pendingOffer.OfferId,
@@ -952,9 +1005,19 @@ if RunService:IsStudio() then
 				end
 			end
 			return nil
+		elseif action == "GetBoxBarState" then
+			local result = {}
+			for b = 1, 3 do
+				local btn = boxButtons[b]
+				table.insert(result, {
+					Box = b,
+					Text = btn and btn.Text or "NIL",
+					BgColor = btn and btn.BackgroundColor3 or Color3.new(),
+				})
+			end
+			return result
 		end
 		return nil
 	end
 	testBridge.Parent = screenGui
 end
-

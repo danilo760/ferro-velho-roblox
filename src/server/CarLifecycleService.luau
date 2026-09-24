@@ -15,13 +15,18 @@ local PartRecoveryService = require(ServerScriptService.Server.PartRecoveryServi
 local AuctionCatalog = require(ReplicatedStorage.Shared.AuctionCatalog)
 
 local CarLifecycleService = {}
-local COMPLETION_BONUS = 225
+local COMPLETION_BONUS = AuctionCatalog.COMPLETION_BONUS
 local RESPAWN_DELAY = 3
 local TOTAL_PARTS = 12
 local EXPECTED_PARTS: {[string]: boolean} = {
 	Engine = true, Battery = true, WheelFrontLeft = true, WheelFrontRight = true,
 	WheelRearLeft = true, WheelRearRight = true, Hood = true, DoorLeft = true,
 	DoorRight = true, Trunk = true, HeadlightLeft = true, HeadlightRight = true,
+}
+local TRAINING_PARTS = {
+	"Engine", "Battery", "WheelFrontLeft", "WheelFrontRight",
+	"WheelRearLeft", "WheelRearRight", "Hood", "DoorLeft",
+	"DoorRight", "Trunk", "HeadlightLeft", "HeadlightRight",
 }
 local ALLOWED_SAVED_PARTS: {[string]: boolean} = {
 	Chassis = true, Engine = true, Battery = true, WheelFrontLeft = true, WheelFrontRight = true,
@@ -622,7 +627,7 @@ function CarLifecycleService.GetBoxSummary(player: Player, boxIndex: number): Bo
 		return {
 			BoxIndex = boxIndex,
 			CurrentCarName = "Carro de Treinamento",
-			CycleValue = 1500,
+			CycleValue = AuctionCatalog.CalculateCycleValue(TRAINING_PARTS, 1.0),
 			TotalParts = 12,
 			ScrapMultiplier = 1.0,
 			IsTrainingCar = true,

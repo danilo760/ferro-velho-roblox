@@ -36,6 +36,9 @@ export type CatalogOffer = {
 	AccentColor: Color3,
 }
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PartsCatalog = require(ReplicatedStorage.Shared.PartsCatalog)
+
 local BASE_TICKET_COSTS: {[ConservationStateId]: number} = {
 	[1] = 4,
 	[2] = 8,
@@ -57,7 +60,7 @@ local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 		Id = 1,
 		Name = "Sucateado",
 		Multiplier = 0.8,
-		TicketCost = 4,
+		TicketCost = BASE_TICKET_COSTS[1],
 		MinPartsRatio = 0.40,
 		MaxPartsRatio = 0.50,
 		TagColor = Color3.fromRGB(180, 110, 50),
@@ -66,7 +69,7 @@ local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 		Id = 2,
 		Name = "Danificado",
 		Multiplier = 1.0,
-		TicketCost = 8,
+		TicketCost = BASE_TICKET_COSTS[2],
 		MinPartsRatio = 0.60,
 		MaxPartsRatio = 0.70,
 		TagColor = Color3.fromRGB(215, 160, 45),
@@ -75,7 +78,7 @@ local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 		Id = 3,
 		Name = "Usado",
 		Multiplier = 1.4,
-		TicketCost = 12,
+		TicketCost = BASE_TICKET_COSTS[3],
 		MinPartsRatio = 0.80,
 		MaxPartsRatio = 0.90,
 		TagColor = Color3.fromRGB(60, 150, 220),
@@ -84,7 +87,7 @@ local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 		Id = 4,
 		Name = "Preservado",
 		Multiplier = 2.0,
-		TicketCost = 24,
+		TicketCost = BASE_TICKET_COSTS[4],
 		MinPartsRatio = 1.00,
 		MaxPartsRatio = 1.00,
 		TagColor = Color3.fromRGB(65, 195, 105),
@@ -93,7 +96,7 @@ local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 		Id = 5,
 		Name = "Excelente",
 		Multiplier = 3.0,
-		TicketCost = 48,
+		TicketCost = BASE_TICKET_COSTS[5],
 		MinPartsRatio = 1.00,
 		MaxPartsRatio = 1.00,
 		TagColor = Color3.fromRGB(180, 80, 235),
@@ -152,21 +155,6 @@ local REMOVABLE_PARTS = {
 	"Battery",
 }
 
-local BASE_VALUES: {[string]: number} = {
-	Engine = 450,
-	Battery = 80,
-	Hood = 95,
-	Trunk = 100,
-	DoorLeft = 110,
-	DoorRight = 110,
-	HeadlightLeft = 45,
-	HeadlightRight = 45,
-	WheelFrontLeft = 60,
-	WheelFrontRight = 60,
-	WheelRearLeft = 60,
-	WheelRearRight = 60,
-}
-
 local COLOR_PALETTES = {
 	Color3.fromRGB(85, 95, 105),
 	Color3.fromRGB(150, 75, 45),
@@ -189,7 +177,6 @@ local COMPLETION_BONUS = 225
 
 local AuctionCatalog = {}
 AuctionCatalog.COMPLETION_BONUS = COMPLETION_BONUS
-AuctionCatalog.BASE_VALUES = BASE_VALUES
 AuctionCatalog.BASE_TICKET_COSTS = BASE_TICKET_COSTS
 AuctionCatalog.MODEL_TICKET_SURCHARGE = MODEL_TICKET_SURCHARGE
 
@@ -212,9 +199,9 @@ function AuctionCatalog.CalculateCycleValue(installedParts: {string}?, scrapMult
 	local mult = if typeof(scrapMultiplier) == "number" and scrapMultiplier > 0 then scrapMultiplier else 1
 	local totalPartsVal = 0
 	for _, partName in installedParts do
-		local baseVal = BASE_VALUES[partName]
-		if baseVal then
-			totalPartsVal += math.round(baseVal * mult)
+		local partDef = PartsCatalog[partName]
+		if partDef then
+			totalPartsVal += math.round(partDef.SellValue * mult)
 		end
 	end
 	return totalPartsVal + COMPLETION_BONUS
@@ -224,7 +211,7 @@ function AuctionCatalog.CountVendibleParts(installedParts: {string}?): number
 	if not installedParts then return 0 end
 	local count = 0
 	for _, part in installedParts do
-		if BASE_VALUES[part] ~= nil then
+		if PartsCatalog[part] ~= nil then
 			count += 1
 		end
 	end
