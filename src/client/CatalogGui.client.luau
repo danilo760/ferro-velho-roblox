@@ -270,7 +270,7 @@ hintLabel.Name = "Hint"
 hintLabel.Size = UDim2.new(1, 0, 0.5, 0)
 hintLabel.Position = UDim2.fromOffset(0, 22)
 hintLabel.BackgroundTransparency = 1
-hintLabel.Text = "Peças vendidas geram TicketPoints (12 pontos = 1 Ticket)  •  Ofertas custam de 1 a 8 Tickets."
+hintLabel.Text = "Conclua o carro: cada peça vendável presente vale 1 ponto • 12 pontos = 1 Ticket."
 hintLabel.TextColor3 = Color3.fromRGB(120, 130, 145)
 hintLabel.Font = Enum.Font.Gotham
 hintLabel.TextSize = 12
