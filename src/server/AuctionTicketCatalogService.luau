@@ -72,6 +72,7 @@ function AuctionTicketCatalogService.GetPlayerCatalog(player: Player): {
 	TimeRemaining: number,
 	Tickets: number,
 	PurchasedOffers: {[string]: boolean},
+	Boxes: {CarLifecycleService.BoxSummary},
 }
 	if #currentServerCatalog == 0 then
 		currentServerCatalog = AuctionCatalog.GenerateCatalog()
@@ -80,12 +81,14 @@ function AuctionTicketCatalogService.GetPlayerCatalog(player: Player): {
 	local remaining = math.max(0, nextRefreshTime - os.time())
 	local tickets = EconomyService.GetTickets(player)
 	local purchased = playerPurchases[player.UserId] or {}
+	local boxes = CarLifecycleService.GetUnlockedBoxesSummary(player)
 
 	return {
 		Offers = currentServerCatalog,
 		TimeRemaining = remaining,
 		Tickets = tickets,
 		PurchasedOffers = purchased,
+		Boxes = boxes,
 	}
 end
 

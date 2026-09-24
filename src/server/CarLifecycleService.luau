@@ -53,6 +53,17 @@ export type BoxCarSlot = {
 	PendingConfig: BoxCarConfig?,
 }
 
+export type BoxSummary = {
+	BoxIndex: number,
+	CurrentCarName: string,
+	CycleValue: number,
+	TotalParts: number,
+	ScrapMultiplier: number,
+	IsTrainingCar: boolean,
+	HasPending: boolean,
+	PendingCarName: string?,
+}
+
 type CarSession = {
 	SessionId: number,
 	OwnerUserId: number,
@@ -583,6 +594,52 @@ function CarLifecycleService.CompleteSession(player: Player, boxIndex: number): 
 	if not session or session.IsCompleted then return false end
 	completeSession(session)
 	return true
+end
+
+function CarLifecycleService.GetBoxSummary(player: Player, boxIndex: number): BoxSummary
+	local slot = playerBoxSlots[player.UserId] and playerBoxSlots[player.UserId][boxIndex]
+	local currentCfg = slot and slot.CurrentConfig
+	local pendingCfg = slot and slot.PendingConfig
+
+	if currentCfg then
+		local installed = currentCfg.InstalledParts or {}
+		local vendibleCount = AuctionCatalog.CountVendibleParts(installed)
+		local mult = currentCfg.ScrapMultiplier or 1
+		local cycleVal = AuctionCatalog.CalculateCycleValue(installed, mult)
+
+		return {
+			BoxIndex = boxIndex,
+			CurrentCarName = currentCfg.DisplayName,
+			CycleValue = cycleVal,
+			TotalParts = vendibleCount,
+			ScrapMultiplier = mult,
+			IsTrainingCar = false,
+			HasPending = pendingCfg ~= nil,
+			PendingCarName = if pendingCfg then pendingCfg.DisplayName else nil,
+		}
+	else
+		-- Carro de Treinamento padrão
+		return {
+			BoxIndex = boxIndex,
+			CurrentCarName = "Carro de Treinamento",
+			CycleValue = 1500,
+			TotalParts = 12,
+			ScrapMultiplier = 1.0,
+			IsTrainingCar = true,
+			HasPending = pendingCfg ~= nil,
+			PendingCarName = if pendingCfg then pendingCfg.DisplayName else nil,
+		}
+	end
+end
+
+function CarLifecycleService.GetUnlockedBoxesSummary(player: Player): {BoxSummary}
+	local unlocked = player:GetAttribute("UnlockedBoxes")
+	local maxUnlocked = if typeof(unlocked) == "number" then math.clamp(unlocked, 1, 3) else 1
+	local summaries: {BoxSummary} = {}
+	for b = 1, maxUnlocked do
+		table.insert(summaries, CarLifecycleService.GetBoxSummary(player, b))
+	end
+	return summaries
 end
 
 return CarLifecycleService

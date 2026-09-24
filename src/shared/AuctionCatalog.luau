@@ -36,12 +36,28 @@ export type CatalogOffer = {
 	AccentColor: Color3,
 }
 
+local BASE_TICKET_COSTS: {[ConservationStateId]: number} = {
+	[1] = 4,
+	[2] = 8,
+	[3] = 12,
+	[4] = 24,
+	[5] = 48,
+}
+
+local MODEL_TICKET_SURCHARGE: {[string]: number} = {
+	Sedan90s = 0,
+	CompactHatch = 1,
+	RustPickup = 2,
+	VintageCoupe = 4,
+	MuscleCar72 = 6,
+}
+
 local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 	[1] = {
 		Id = 1,
 		Name = "Sucateado",
 		Multiplier = 0.8,
-		TicketCost = 1,
+		TicketCost = 4,
 		MinPartsRatio = 0.40,
 		MaxPartsRatio = 0.50,
 		TagColor = Color3.fromRGB(180, 110, 50),
@@ -50,7 +66,7 @@ local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 		Id = 2,
 		Name = "Danificado",
 		Multiplier = 1.0,
-		TicketCost = 2,
+		TicketCost = 8,
 		MinPartsRatio = 0.60,
 		MaxPartsRatio = 0.70,
 		TagColor = Color3.fromRGB(215, 160, 45),
@@ -59,7 +75,7 @@ local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 		Id = 3,
 		Name = "Usado",
 		Multiplier = 1.4,
-		TicketCost = 3,
+		TicketCost = 12,
 		MinPartsRatio = 0.80,
 		MaxPartsRatio = 0.90,
 		TagColor = Color3.fromRGB(60, 150, 220),
@@ -68,7 +84,7 @@ local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 		Id = 4,
 		Name = "Preservado",
 		Multiplier = 2.0,
-		TicketCost = 5,
+		TicketCost = 24,
 		MinPartsRatio = 1.00,
 		MaxPartsRatio = 1.00,
 		TagColor = Color3.fromRGB(65, 195, 105),
@@ -77,7 +93,7 @@ local CONSERVATION_STATES: {[ConservationStateId]: ConservationDef} = {
 		Id = 5,
 		Name = "Excelente",
 		Multiplier = 3.0,
-		TicketCost = 8,
+		TicketCost = 48,
 		MinPartsRatio = 1.00,
 		MaxPartsRatio = 1.00,
 		TagColor = Color3.fromRGB(180, 80, 235),
@@ -169,7 +185,13 @@ local PRISTINE_COLORS = {
 	Color3.fromRGB(35, 145, 230), -- Azul elétrico
 }
 
+local COMPLETION_BONUS = 225
+
 local AuctionCatalog = {}
+AuctionCatalog.COMPLETION_BONUS = COMPLETION_BONUS
+AuctionCatalog.BASE_VALUES = BASE_VALUES
+AuctionCatalog.BASE_TICKET_COSTS = BASE_TICKET_COSTS
+AuctionCatalog.MODEL_TICKET_SURCHARGE = MODEL_TICKET_SURCHARGE
 
 function AuctionCatalog.GetConservation(tier: ConservationStateId): ConservationDef
 	return CONSERVATION_STATES[tier] or CONSERVATION_STATES[1]
@@ -177,6 +199,36 @@ end
 
 function AuctionCatalog.GetModel(id: string): AuctionCarModel?
 	return VEHICLE_MODELS[id]
+end
+
+function AuctionCatalog.GetTicketCost(modelId: string, tier: ConservationStateId): number
+	local baseCost = BASE_TICKET_COSTS[tier] or 4
+	local surcharge = MODEL_TICKET_SURCHARGE[modelId] or 0
+	return baseCost + surcharge
+end
+
+function AuctionCatalog.CalculateCycleValue(installedParts: {string}?, scrapMultiplier: number?): number
+	if not installedParts then return COMPLETION_BONUS end
+	local mult = if typeof(scrapMultiplier) == "number" and scrapMultiplier > 0 then scrapMultiplier else 1
+	local totalPartsVal = 0
+	for _, partName in installedParts do
+		local baseVal = BASE_VALUES[partName]
+		if baseVal then
+			totalPartsVal += math.round(baseVal * mult)
+		end
+	end
+	return totalPartsVal + COMPLETION_BONUS
+end
+
+function AuctionCatalog.CountVendibleParts(installedParts: {string}?): number
+	if not installedParts then return 0 end
+	local count = 0
+	for _, part in installedParts do
+		if BASE_VALUES[part] ~= nil then
+			count += 1
+		end
+	end
+	return count
 end
 
 function AuctionCatalog.GenerateOffer(offerId: string, forcedTier: ConservationStateId?): CatalogOffer
@@ -224,12 +276,9 @@ function AuctionCatalog.GenerateOffer(offerId: string, forcedTier: ConservationS
 		table.insert(installedParts, partsPool[i])
 	end
 
-	-- Calcular valor estimado de sucata
-	local totalEstValue = 0
-	for _, partName in installedParts do
-		local baseVal = BASE_VALUES[partName] or 0
-		totalEstValue += math.round(baseVal * finalMultiplier)
-	end
+	local totalEstValue = AuctionCatalog.CalculateCycleValue(installedParts, finalMultiplier)
+	local vendibleCount = AuctionCatalog.CountVendibleParts(installedParts)
+	local ticketCost = AuctionCatalog.GetTicketCost(model.Id, tier)
 
 	local bodyColor: Color3
 	local accentColor: Color3 = model.BaseAccentColor
@@ -241,21 +290,13 @@ function AuctionCatalog.GenerateOffer(offerId: string, forcedTier: ConservationS
 		bodyColor = COLOR_PALETTES[math.random(1, #COLOR_PALETTES)]
 	end
 
-	-- Contagem de peças removíveis instaladas + Engine = total de peças vendíveis
-	local vendibleCount = 0
-	for _, part in installedParts do
-		if BASE_VALUES[part] ~= nil then
-			vendibleCount += 1
-		end
-	end
-
 	return {
 		OfferId = offerId,
 		ModelId = model.Id,
 		DisplayName = model.DisplayName,
 		Description = model.Description,
 		Conservation = conservation,
-		TicketCost = conservation.TicketCost,
+		TicketCost = ticketCost,
 		ScrapMultiplier = finalMultiplier,
 		InstalledParts = installedParts,
 		TotalPartsCount = vendibleCount,

@@ -72,6 +72,10 @@ if RunService:IsStudio() then
 			return true
 		elseif action == "CompleteSession" then
 			return CarLifecycleService.CompleteSession(args.Player, args.BoxIndex or 1)
+		elseif action == "GetBoxSummary" then
+			return CarLifecycleService.GetBoxSummary(args.Player, args.BoxIndex or 1)
+		elseif action == "GetUnlockedBoxesSummary" then
+			return CarLifecycleService.GetUnlockedBoxesSummary(args.Player)
 		end
 		return nil
 	end
