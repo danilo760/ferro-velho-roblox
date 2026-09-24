@@ -199,9 +199,10 @@ local function completeSession(session: CarSession)
 	if player then
 		EconomyService.AwardBonus(player, COMPLETION_BONUS)
 		EconomyService.IncrementCars(player)
-		EconomyService.AddTickets(player, 1) -- +1 Ticket de Leilão por ciclo completo
+		local totalParts = session.TotalParts or TOTAL_PARTS
+		local ticketsAwarded, remainingPoints = EconomyService.AddTicketPoints(player, totalParts)
 		player:SetAttribute("LastCarBonus", COMPLETION_BONUS)
-		player:SetAttribute("LastTicketReward", 1)
+		player:SetAttribute("LastTicketReward", ticketsAwarded)
 		local serial = player:GetAttribute("CarCompletionSerial")
 		player:SetAttribute("CarCompletionSerial", if typeof(serial) == "number" then serial + 1 else 1)
 
@@ -574,6 +575,14 @@ function CarLifecycleService.SpawnAuctionCar(player: Player, boxIndex: number, c
 	CarLifecycleService.AssignCarToBox(player, boxIndex, config)
 	local session = playerSessions[player.UserId] and playerSessions[player.UserId][boxIndex]
 	return if session then session.Model else nil
+end
+
+function CarLifecycleService.CompleteSession(player: Player, boxIndex: number): boolean
+	local sessions = playerSessions[player.UserId]
+	local session = sessions and sessions[boxIndex]
+	if not session or session.IsCompleted then return false end
+	completeSession(session)
+	return true
 end
 
 return CarLifecycleService

@@ -62,6 +62,16 @@ if RunService:IsStudio() then
 			return PlayerDataService.GetStoredMockData(args)
 		elseif action == "SetMockData" then
 			return PlayerDataService.SetStoredMockData(args.UserId, args.Data)
+		elseif action == "AddTicketPoints" then
+			local ticketsAwarded, remaining = EconomyService.AddTicketPoints(args.Player, args.Points)
+			return { TicketsAwarded = ticketsAwarded, RemainingPoints = remaining }
+		elseif action == "GetTicketPoints" then
+			return EconomyService.GetTicketPoints(args.Player)
+		elseif action == "SetTicketPoints" then
+			EconomyService.SetTicketPoints(args.Player, args.Points)
+			return true
+		elseif action == "CompleteSession" then
+			return CarLifecycleService.CompleteSession(args.Player, args.BoxIndex or 1)
 		end
 		return nil
 	end

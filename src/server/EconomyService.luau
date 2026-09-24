@@ -36,6 +36,10 @@ local function setupPlayer(player: Player)
 	local existingTickets = player:GetAttribute("AuctionTickets")
 	tickets.Value = if typeof(existingTickets) == "number" then existingTickets else 3
 	tickets.Parent = leaderstats
+	local existingPoints = player:GetAttribute("TicketPoints")
+	if typeof(existingPoints) ~= "number" then
+		player:SetAttribute("TicketPoints", 0)
+	end
 end
 
 local function getMoney(player: Player): IntValue?
@@ -76,6 +80,33 @@ function EconomyService.DeductTickets(player: Player, amount: number): boolean
 	if tickets then tickets.Value = newTotal end
 	player:SetAttribute("AuctionTickets", newTotal)
 	return true
+end
+
+function EconomyService.GetTicketPoints(player: Player): number
+	local attr = player:GetAttribute("TicketPoints")
+	return if typeof(attr) == "number" then attr else 0
+end
+
+function EconomyService.SetTicketPoints(player: Player, points: number)
+	if not isFiniteNumber(points) or points < 0 or points > 11 or points % 1 ~= 0 then return end
+	player:SetAttribute("TicketPoints", points)
+end
+
+function EconomyService.AddTicketPoints(player: Player, points: number): (number, number)
+	if not isFiniteNumber(points) or points <= 0 or points % 1 ~= 0 then
+		return 0, EconomyService.GetTicketPoints(player)
+	end
+	local currentPoints = EconomyService.GetTicketPoints(player)
+	local totalPoints = currentPoints + points
+	local ticketsToAdd = math.floor(totalPoints / 12)
+	local remainingPoints = totalPoints % 12
+
+	if ticketsToAdd > 0 then
+		EconomyService.AddTickets(player, ticketsToAdd)
+	end
+	player:SetAttribute("TicketPoints", remainingPoints)
+
+	return ticketsToAdd, remainingPoints
 end
 
 local function findCarriedPart(player: Player): BasePart?

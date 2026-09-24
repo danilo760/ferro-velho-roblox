@@ -13,7 +13,7 @@ local STORE_NAME = "FerroVelhoPlayerData_v1"
 local AUTOSAVE_INTERVAL = 60
 local LOCK_HEARTBEAT_INTERVAL = 30
 local DATASTORE_MAX_ATTEMPTS = 3
-local SCHEMA_VERSION = 3
+local SCHEMA_VERSION = 4
 local LOCK_TTL = 300
 local LOCK_ACQUIRE_RETRIES = 3
 local LOCK_RETRY_DELAY = 5
@@ -36,6 +36,7 @@ type PlayerData = {
 	Cash: number,
 	CarsDismantled: number,
 	AuctionTickets: number,
+	TicketPoints: number,
 	ToolLevel: number,
 	SpeedLevel: number,
 	UnlockedBoxes: number,
@@ -48,6 +49,7 @@ local DEFAULT_DATA: PlayerData = {
 	Cash = 0,
 	CarsDismantled = 0,
 	AuctionTickets = 3,
+	TicketPoints = 0,
 	ToolLevel = 1,
 	SpeedLevel = 1,
 	UnlockedBoxes = 1,
@@ -61,6 +63,7 @@ local function newDefaultData(): PlayerData
 		Cash = DEFAULT_DATA.Cash,
 		CarsDismantled = DEFAULT_DATA.CarsDismantled,
 		AuctionTickets = DEFAULT_DATA.AuctionTickets,
+		TicketPoints = DEFAULT_DATA.TicketPoints,
 		ToolLevel = DEFAULT_DATA.ToolLevel,
 		SpeedLevel = DEFAULT_DATA.SpeedLevel,
 		UnlockedBoxes = DEFAULT_DATA.UnlockedBoxes,
@@ -93,10 +96,16 @@ end
 
 local function sanitize(raw: any): PlayerData
 	if typeof(raw) ~= "table" then return newDefaultData() end
+	local rawTicketPoints = integerInRange(raw.TicketPoints, 0, 0, 2_000_000_000)
+	local convertedTickets = math.floor(rawTicketPoints / 12)
+	local surplusPoints = rawTicketPoints % 12
+	local rawTickets = integerInRange(raw.AuctionTickets, 3, 0, 2_000_000_000)
+
 	return {
 		Cash = integerInRange(raw.Cash, 0, 0, 2_000_000_000),
 		CarsDismantled = integerInRange(raw.CarsDismantled, 0, 0, 2_000_000_000),
-		AuctionTickets = integerInRange(raw.AuctionTickets, 3, 0, 2_000_000_000),
+		AuctionTickets = rawTickets + convertedTickets,
+		TicketPoints = surplusPoints,
 		ToolLevel = integerInRange(raw.ToolLevel, 1, 1, 2),
 		SpeedLevel = integerInRange(raw.SpeedLevel, 1, 1, 5),
 		UnlockedBoxes = integerInRange(raw.UnlockedBoxes, 1, 1, 3),
@@ -157,6 +166,7 @@ local function applyData(player: Player, data: PlayerData): boolean
 	cars.Value = data.CarsDismantled
 	if tickets then tickets.Value = data.AuctionTickets end
 	player:SetAttribute("AuctionTickets", data.AuctionTickets)
+	player:SetAttribute("TicketPoints", data.TicketPoints)
 	player:SetAttribute("ToolLevel", data.ToolLevel)
 	player:SetAttribute("SpeedLevel", data.SpeedLevel)
 	player:SetAttribute("UnlockedBoxes", data.UnlockedBoxes)
@@ -174,11 +184,13 @@ local function snapshot(player: Player): PlayerData?
 	local toolLevel = player:GetAttribute("ToolLevel")
 	local speedLevel = player:GetAttribute("SpeedLevel")
 	local unlockedBoxes = player:GetAttribute("UnlockedBoxes")
+	local ticketPoints = player:GetAttribute("TicketPoints")
 	if not money or not cars or not tickets or typeof(toolLevel) ~= "number" then return nil end
 	return sanitize({
 		Cash = money.Value,
 		CarsDismantled = cars.Value,
 		AuctionTickets = tickets.Value,
+		TicketPoints = if typeof(ticketPoints) == "number" then ticketPoints else 0,
 		ToolLevel = toolLevel,
 		SpeedLevel = if typeof(speedLevel) == "number" then speedLevel else 1,
 		UnlockedBoxes = if typeof(unlockedBoxes) == "number" then unlockedBoxes else 1,

@@ -59,15 +59,27 @@ headerCorner.Parent = header
 
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Name = "Title"
-titleLabel.Size = UDim2.new(0.45, 0, 1, 0)
-titleLabel.Position = UDim2.fromOffset(18, 0)
+titleLabel.Size = UDim2.new(0.45, 0, 0.52, 0)
+titleLabel.Position = UDim2.fromOffset(18, 5)
 titleLabel.BackgroundTransparency = 1
 titleLabel.Text = "⚖️ CATÁLOGO DE SUCATAS (LEILÃO)"
 titleLabel.TextColor3 = Color3.fromRGB(255, 215, 60)
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Font = Enum.Font.GothamBlack
-titleLabel.TextSize = 20
+titleLabel.TextSize = 17
 titleLabel.Parent = header
+
+local progressLabel = Instance.new("TextLabel")
+progressLabel.Name = "TicketProgress"
+progressLabel.Size = UDim2.new(0.45, 0, 0.44, 0)
+progressLabel.Position = UDim2.fromOffset(18, 30)
+progressLabel.BackgroundTransparency = 1
+progressLabel.Text = "Progresso do próximo Ticket: 0/12"
+progressLabel.TextColor3 = Color3.fromRGB(150, 200, 255)
+progressLabel.TextXAlignment = Enum.TextXAlignment.Left
+progressLabel.Font = Enum.Font.GothamBold
+progressLabel.TextSize = 12
+progressLabel.Parent = header
 
 -- Timer Label
 local timerLabel = Instance.new("TextLabel")
@@ -258,7 +270,7 @@ hintLabel.Name = "Hint"
 hintLabel.Size = UDim2.new(1, 0, 0.5, 0)
 hintLabel.Position = UDim2.fromOffset(0, 22)
 hintLabel.BackgroundTransparency = 1
-hintLabel.Text = "Conclua qualquer carro: +1 Ticket  •  Ofertas custam de 1 a 8 Tickets."
+hintLabel.Text = "Peças vendidas geram TicketPoints (12 pontos = 1 Ticket)  •  Ofertas custam de 1 a 8 Tickets."
 hintLabel.TextColor3 = Color3.fromRGB(120, 130, 145)
 hintLabel.Font = Enum.Font.Gotham
 hintLabel.TextSize = 12
@@ -266,14 +278,18 @@ hintLabel.Parent = footer
 
 -- Helpers & Network
 local refreshDeadline = os.time() + 300
-local updateHudTicketText: ((number) -> ())? = nil
+local updateHudTicketText: ((number, number) -> ())? = nil
 
 local function updateTicketDisplay()
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local tickets = leaderstats and leaderstats:FindFirstChild("Tickets")
 	local count = if tickets and tickets:IsA("IntValue") then tickets.Value else (player:GetAttribute("AuctionTickets") or 0)
-	ticketLabel.Text = string.format("%d TICKETS", count)
-	if updateHudTicketText then updateHudTicketText(count) end
+	local points = player:GetAttribute("TicketPoints")
+	local pointsCount = if typeof(points) == "number" then points else 0
+
+	ticketLabel.Text = string.format("%d %s", count, if count == 1 then "TICKET" else "TICKETS")
+	progressLabel.Text = string.format("Progresso do próximo Ticket: %d/12", pointsCount)
+	if updateHudTicketText then updateHudTicketText(count, pointsCount) end
 end
 
 local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
@@ -523,18 +539,18 @@ closeBtn.MouseButton1Click:Connect(closeCatalog)
 -- HUD Quick Access Button (Left side of screen)
 local hudBtn = Instance.new("TextButton")
 hudBtn.Name = "OpenCatalogHudBtn"
-hudBtn.Size = UDim2.fromOffset(190, 40)
+hudBtn.Size = UDim2.fromOffset(210, 40)
 hudBtn.Position = UDim2.new(0, 20, 0, 130)
 hudBtn.BackgroundColor3 = Color3.fromRGB(24, 30, 42)
 hudBtn.BorderSizePixel = 0
-hudBtn.Text = "CATÁLOGO  •  0 TICKETS"
+hudBtn.Text = "CATÁLOGO  •  0 TICKETS (0/12)"
 hudBtn.TextColor3 = Color3.fromRGB(255, 215, 60)
 hudBtn.Font = Enum.Font.GothamBlack
-hudBtn.TextSize = 13
+hudBtn.TextSize = 12
 hudBtn.Parent = screenGui
 
-updateHudTicketText = function(count: number)
-	hudBtn.Text = string.format("CATÁLOGO  •  %d TICKETS", count)
+updateHudTicketText = function(count: number, points: number)
+	hudBtn.Text = string.format("CATÁLOGO  •  %d %s (%d/12)", count, if count == 1 then "TICKET" else "TICKETS", points)
 end
 updateTicketDisplay()
 
@@ -610,6 +626,7 @@ if leaderstats then
 	end
 end
 player:GetAttributeChangedSignal("AuctionTickets"):Connect(updateTicketDisplay)
+player:GetAttributeChangedSignal("TicketPoints"):Connect(updateTicketDisplay)
 player:GetAttributeChangedSignal("UnlockedBoxes"):Connect(updateBoxBar)
 
 -- Remote Event for automatic 5-minute rotation
