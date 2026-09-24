@@ -19,7 +19,9 @@ local LOCK_ACQUIRE_RETRIES = 3
 local LOCK_RETRY_DELAY = 5
 local SHUTDOWN_SAVE_TIMEOUT = 25
 local MAX_CLOCK_SKEW = 30
-local USE_STUDIO_MEMORY_MOCK = RunService:IsStudio() and (game.PlaceId == 0 or game.GameId == 0)
+-- O Studio usa memória temporária para não depender da opção "Enable Studio Access to API Services".
+-- Servidores publicados continuam usando DataStore e session locking normalmente.
+local USE_STUDIO_MEMORY_MOCK = RunService:IsStudio()
 local CURRENT_SESSION_ID = if game.JobId ~= "" then game.JobId else "Studio-" .. HttpService:GenerateGUID(false)
 local saving: {[Player]: boolean} = {}
 local studioMockStore: {[string]: any} = {}
@@ -236,7 +238,7 @@ local function loadPlayer(player: Player)
 	player:SetAttribute("DataLoadFailed", false)
 	local key = "Player_" .. player.UserId
 
-	-- Mock apenas para lugares ainda não publicados no Studio. Ele não sobrevive ao encerramento do servidor.
+	-- Mock para qualquer sessão do Studio. Ele não sobrevive ao encerramento do servidor.
 	if USE_STUDIO_MEMORY_MOCK then
 		player:SetAttribute("DataSessionMode", "StudioMock")
 		local cached = studioMockStore[key]
@@ -350,7 +352,7 @@ local function savePlayer(player: Player, releaseLock: boolean?): boolean
 	local key = "Player_" .. player.UserId
 	local shouldRelease = releaseLock == true
 
-	-- Em lugar não publicado no Studio, manter apenas durante a vida deste servidor de teste.
+	-- No Studio, manter apenas durante a vida deste servidor de teste.
 	if USE_STUDIO_MEMORY_MOCK then
 		local storedData = studioMockStore[key]
 		local stored = if storedData ~= nil then sanitize(storedData) else nil

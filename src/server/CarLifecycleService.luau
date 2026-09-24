@@ -201,6 +201,7 @@ local function completeSession(session: CarSession)
 		EconomyService.IncrementCars(player)
 		EconomyService.AddTickets(player, 1) -- +1 Ticket de Leilão por ciclo completo
 		player:SetAttribute("LastCarBonus", COMPLETION_BONUS)
+		player:SetAttribute("LastTicketReward", 1)
 		local serial = player:GetAttribute("CarCompletionSerial")
 		player:SetAttribute("CarCompletionSerial", if typeof(serial) == "number" then serial + 1 else 1)
 
@@ -299,7 +300,7 @@ spawnCarForBox = function(player: Player, plot: Model, boxIndex: number)
 
 	PartRemovalService.setupCar(car, player.UserId, plotGroundY)
 	EngineHoistService.start(car, hoistOrigin, player.UserId, boxIndex)
-	PartRecoveryService.start(car, plotGroundY, boxOrigin.CFrame)
+	PartRecoveryService.start(car, plotGroundY, boxOrigin)
 
 	local session: CarSession = {
 		SessionId = sessionCounter,

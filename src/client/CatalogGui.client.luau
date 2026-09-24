@@ -247,7 +247,7 @@ feedbackLabel.Name = "Feedback"
 feedbackLabel.Size = UDim2.new(1, 0, 0.5, 0)
 feedbackLabel.Position = UDim2.fromOffset(0, 0)
 feedbackLabel.BackgroundTransparency = 1
-feedbackLabel.Text = "💡 Veículos adquiridos tornam-se permanentes no seu Box até você decidir substituí-los!"
+feedbackLabel.Text = "Veículos adquiridos permanecem no Box até serem substituídos."
 feedbackLabel.TextColor3 = Color3.fromRGB(150, 190, 230)
 feedbackLabel.Font = Enum.Font.Gotham
 feedbackLabel.TextSize = 13
@@ -258,7 +258,7 @@ hintLabel.Name = "Hint"
 hintLabel.Size = UDim2.new(1, 0, 0.5, 0)
 hintLabel.Position = UDim2.fromOffset(0, 22)
 hintLabel.BackgroundTransparency = 1
-hintLabel.Text = "Cada ciclo concluído de 12 peças concede +1 Ticket de Leilão."
+hintLabel.Text = "Conclua qualquer carro: +1 Ticket  •  Ofertas custam de 1 a 8 Tickets."
 hintLabel.TextColor3 = Color3.fromRGB(120, 130, 145)
 hintLabel.Font = Enum.Font.Gotham
 hintLabel.TextSize = 12
@@ -266,15 +266,21 @@ hintLabel.Parent = footer
 
 -- Helpers & Network
 local refreshDeadline = os.time() + 300
+local updateHudTicketText: ((number) -> ())? = nil
 
 local function updateTicketDisplay()
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local tickets = leaderstats and leaderstats:FindFirstChild("Tickets")
 	local count = if tickets and tickets:IsA("IntValue") then tickets.Value else (player:GetAttribute("AuctionTickets") or 0)
-	ticketLabel.Text = string.format("🎟️ %d Tickets", count)
+	ticketLabel.Text = string.format("%d TICKETS", count)
+	if updateHudTicketText then updateHudTicketText(count) end
 end
 
 local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local ticketValue = leaderstats and leaderstats:FindFirstChild("Tickets")
+	local availableTickets = if ticketValue and ticketValue:IsA("IntValue") then ticketValue.Value else (player:GetAttribute("AuctionTickets") or 0)
+	local missingTickets = math.max(0, offer.TicketCost - availableTickets)
 	local card = Instance.new("Frame")
 	card.Name = "Offer_" .. offer.OfferId
 	card.Size = UDim2.fromOffset(180, 315)
@@ -388,8 +394,8 @@ local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
 	priceLabel.Size = UDim2.new(1, -16, 0, 24)
 	priceLabel.Position = UDim2.fromOffset(8, 206)
 	priceLabel.BackgroundTransparency = 1
-	priceLabel.Text = string.format("Custo: 🎟️ %d Tickets", offer.TicketCost)
-	priceLabel.TextColor3 = Color3.fromRGB(255, 230, 130)
+	priceLabel.Text = string.format("Custo: %d Tickets", offer.TicketCost)
+	priceLabel.TextColor3 = if missingTickets > 0 then Color3.fromRGB(255, 125, 105) else Color3.fromRGB(255, 230, 130)
 	priceLabel.Font = Enum.Font.GothamBlack
 	priceLabel.TextSize = 14
 	priceLabel.Parent = card
@@ -411,6 +417,11 @@ local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
 		buyBtn.Text = "Adquirido"
 		buyBtn.BackgroundColor3 = Color3.fromRGB(55, 60, 70)
 		buyBtn.TextColor3 = Color3.fromRGB(160, 165, 175)
+		buyBtn.Active = false
+	elseif missingTickets > 0 then
+		buyBtn.Text = string.format("FALTAM %d TICKETS", missingTickets)
+		buyBtn.BackgroundColor3 = Color3.fromRGB(75, 61, 60)
+		buyBtn.TextColor3 = Color3.fromRGB(235, 165, 150)
 		buyBtn.Active = false
 	else
 		buyBtn.Text = "Comprar"
@@ -462,8 +473,13 @@ local function renderOfferCard(offer: CatalogOffer, isPurchased: boolean)
 	end)
 end
 
+local lastOffers: {CatalogOffer} = {}
+local lastPurchasedOffers: {[string]: boolean} = {}
+
 local function refreshUI(offers: {CatalogOffer}, purchasedOffers: {[string]: boolean}?)
 	local purchased = purchasedOffers or {}
+	lastOffers = offers
+	lastPurchasedOffers = purchased
 	for _, child in scrollFrame:GetChildren() do
 		if child:IsA("Frame") then child:Destroy() end
 	end
@@ -511,11 +527,16 @@ hudBtn.Size = UDim2.fromOffset(190, 40)
 hudBtn.Position = UDim2.new(0, 20, 0, 130)
 hudBtn.BackgroundColor3 = Color3.fromRGB(24, 30, 42)
 hudBtn.BorderSizePixel = 0
-hudBtn.Text = "⚖️ Catálogo de Leilão"
+hudBtn.Text = "CATÁLOGO  •  0 TICKETS"
 hudBtn.TextColor3 = Color3.fromRGB(255, 215, 60)
 hudBtn.Font = Enum.Font.GothamBlack
 hudBtn.TextSize = 13
 hudBtn.Parent = screenGui
+
+updateHudTicketText = function(count: number)
+	hudBtn.Text = string.format("CATÁLOGO  •  %d TICKETS", count)
+end
+updateTicketDisplay()
 
 local hudCorner = Instance.new("UICorner")
 hudCorner.CornerRadius = UDim.new(0, 8)
@@ -580,7 +601,12 @@ local leaderstats = player:WaitForChild("leaderstats", 10)
 if leaderstats then
 	local tickets = leaderstats:WaitForChild("Tickets", 10)
 	if tickets and tickets:IsA("IntValue") then
-		tickets.Changed:Connect(updateTicketDisplay)
+		tickets.Changed:Connect(function()
+			updateTicketDisplay()
+			if backdrop.Visible and #lastOffers > 0 then
+				refreshUI(lastOffers, lastPurchasedOffers)
+			end
+		end)
 	end
 end
 player:GetAttributeChangedSignal("AuctionTickets"):Connect(updateTicketDisplay)

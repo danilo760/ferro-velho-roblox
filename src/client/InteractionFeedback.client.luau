@@ -116,7 +116,11 @@ local function showCarCompleted()
 	banner.Size = UDim2.fromOffset(520, 90)
 	banner.BackgroundColor3 = Color3.fromRGB(20, 28, 24)
 	banner.BackgroundTransparency = 0.12
-	banner.Text = "CARRO CONCLUÍDO  •  BÔNUS R$ " .. tostring(player:GetAttribute("LastCarBonus") or 0)
+	banner.Text = string.format(
+		"CARRO CONCLUÍDO  •  BÔNUS R$ %s  •  +%s TICKET",
+		tostring(player:GetAttribute("LastCarBonus") or 0),
+		tostring(player:GetAttribute("LastTicketReward") or 1)
+	)
 	banner.TextColor3 = Color3.fromRGB(255, 225, 95)
 	banner.TextStrokeTransparency = 0.45
 	banner.TextScaled = true

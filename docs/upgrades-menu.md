@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Substituir os pads físicos de compra por um botão lateral `MELHORIAS`, mantendo a oficina física do lote como parte do cenário e como representação visual do progresso.
+Substituir os pads físicos de compra por um botão lateral `MELHORIAS`, mantendo a oficina física do lote como parte do cenário e apresentando a progressão como uma árvore visual.
 
 ## Melhorias exibidas
 
@@ -26,9 +26,10 @@ O menu utiliza diretamente os valores já existentes nos módulos compartilhados
 - Botão permanente `MELHORIAS` na lateral direita da tela.
 - Janela responsiva para computador e celular.
 - Saldo atualizado em tempo real.
-- Um cartão para Ferramentas e outro para Mobilidade.
-- Exibição do nível atual, efeito atual, próxima melhoria, benefício e preço.
-- Estado `NÍVEL MÁXIMO` quando a categoria estiver concluída.
+- Nó raiz `SEU FERRO-VELHO`, dividido nos ramos Ferramentas e Mobilidade.
+- Cada nível aparece como um nó conectado ao nível anterior.
+- Estados visuais distintos para `CONCLUÍDO`, `ATUAL`, próximo nó comprável e `BLOQUEADO`.
+- Apenas o próximo nó de cada ramo aceita compra.
 - Fechamento pelo botão `X`, tecla Escape ou toque fora da janela.
 - Mensagem visual de sucesso ou erro depois da tentativa de compra.
 

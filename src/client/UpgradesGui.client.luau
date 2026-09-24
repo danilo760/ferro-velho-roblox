@@ -12,42 +12,34 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local purchaseRemote = ReplicatedStorage:WaitForChild("PurchaseUpgrade", 10)
 
-local function addCorner(parent: Instance, radius: number)
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, radius)
-	corner.Parent = parent
+local function corner(parent: Instance, radius: number)
+	local value = Instance.new("UICorner")
+	value.CornerRadius = UDim.new(0, radius)
+	value.Parent = parent
 end
 
-local function addStroke(parent: Instance, color: Color3, thickness: number, transparency: number?)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = color
-	stroke.Thickness = thickness
-	stroke.Transparency = transparency or 0
-	stroke.Parent = parent
-end
-
-local function addTextLimit(parent: Instance, minimum: number, maximum: number)
-	local constraint = Instance.new("UITextSizeConstraint")
-	constraint.MinTextSize = minimum
-	constraint.MaxTextSize = maximum
-	constraint.Parent = parent
+local function stroke(parent: Instance, color: Color3, thickness: number, transparency: number?)
+	local value = Instance.new("UIStroke")
+	value.Color = color
+	value.Thickness = thickness
+	value.Transparency = transparency or 0
+	value.Parent = parent
+	return value
 end
 
 local function formatMoney(value: number): string
 	local reversed = string.reverse(tostring(math.max(0, math.floor(value))))
 	local grouped = string.gsub(reversed, "(%d%d%d)", "%1.")
 	local formatted = string.reverse(grouped)
-	if string.sub(formatted, 1, 1) == "." then
-		formatted = string.sub(formatted, 2)
-	end
+	if string.sub(formatted, 1, 1) == "." then formatted = string.sub(formatted, 2) end
 	return "R$ " .. formatted
 end
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "UpgradesGui"
-screenGui.ResetOnSpawn = false
-screenGui.DisplayOrder = 20
-screenGui.Parent = playerGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "UpgradesGui"
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 20
+gui.Parent = playerGui
 
 local openButton = Instance.new("TextButton")
 openButton.Name = "OpenUpgrades"
@@ -61,94 +53,94 @@ openButton.TextColor3 = Color3.fromRGB(246, 196, 55)
 openButton.TextSize = 17
 openButton.Font = Enum.Font.GothamBlack
 openButton.AutoButtonColor = false
-openButton.Parent = screenGui
-addCorner(openButton, 10)
-addStroke(openButton, Color3.fromRGB(246, 196, 55), 2)
+openButton.Parent = gui
+corner(openButton, 10)
+stroke(openButton, Color3.fromRGB(246, 196, 55), 2)
 
-local buttonAccent = Instance.new("Frame")
-buttonAccent.Name = "Accent"
-buttonAccent.Size = UDim2.new(0, 7, 1, 0)
-buttonAccent.BackgroundColor3 = Color3.fromRGB(246, 196, 55)
-buttonAccent.BorderSizePixel = 0
-buttonAccent.Parent = openButton
-addCorner(buttonAccent, 10)
+local openAccent = Instance.new("Frame")
+openAccent.Size = UDim2.new(0, 7, 1, 0)
+openAccent.BackgroundColor3 = Color3.fromRGB(246, 196, 55)
+openAccent.BorderSizePixel = 0
+openAccent.Parent = openButton
+corner(openAccent, 10)
 
 local backdrop = Instance.new("Frame")
 backdrop.Name = "Backdrop"
 backdrop.Size = UDim2.fromScale(1, 1)
-backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-backdrop.BackgroundTransparency = 0.42
+backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
+backdrop.BackgroundTransparency = 0.4
 backdrop.BorderSizePixel = 0
-backdrop.Visible = false
 backdrop.Active = true
-backdrop.Parent = screenGui
+backdrop.Visible = false
+backdrop.Parent = gui
 
 local window = Instance.new("Frame")
-window.Name = "Window"
+window.Name = "UpgradeTree"
 window.AnchorPoint = Vector2.new(0.5, 0.5)
 window.Position = UDim2.fromScale(0.5, 0.5)
-window.Size = UDim2.fromScale(0.82, 0.78)
-window.BackgroundColor3 = Color3.fromRGB(22, 25, 29)
+window.Size = UDim2.fromScale(0.88, 0.84)
+window.BackgroundColor3 = Color3.fromRGB(20, 23, 27)
 window.BorderSizePixel = 0
 window.Parent = backdrop
-addCorner(window, 14)
-addStroke(window, Color3.fromRGB(210, 158, 37), 2)
+corner(window, 14)
+stroke(window, Color3.fromRGB(210, 158, 37), 2)
 
-local windowSize = Instance.new("UISizeConstraint")
-windowSize.MinSize = Vector2.new(300, 420)
-windowSize.MaxSize = Vector2.new(720, 600)
-windowSize.Parent = window
+local sizeConstraint = Instance.new("UISizeConstraint")
+sizeConstraint.MinSize = Vector2.new(300, 430)
+sizeConstraint.MaxSize = Vector2.new(760, 650)
+sizeConstraint.Parent = window
 
 local header = Instance.new("Frame")
-header.Name = "Header"
-header.Size = UDim2.new(1, 0, 0, 92)
-header.BackgroundColor3 = Color3.fromRGB(31, 35, 40)
+header.Size = UDim2.new(1, 0, 0, 82)
+header.BackgroundColor3 = Color3.fromRGB(30, 34, 39)
 header.BorderSizePixel = 0
 header.Parent = window
-addCorner(header, 14)
+corner(header, 14)
 
 local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Size = UDim2.new(1, -70, 0, 36)
-title.Position = UDim2.fromOffset(20, 8)
+title.Position = UDim2.fromOffset(18, 8)
+title.Size = UDim2.new(1, -72, 0, 32)
 title.BackgroundTransparency = 1
-title.Text = "CENTRAL DE MELHORIAS"
+title.Text = "ÁRVORE DE MELHORIAS"
 title.TextColor3 = Color3.fromRGB(246, 196, 55)
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.TextScaled = true
 title.Font = Enum.Font.GothamBlack
 title.Parent = header
-addTextLimit(title, 15, 24)
+
+local titleLimit = Instance.new("UITextSizeConstraint")
+titleLimit.MinTextSize = 15
+titleLimit.MaxTextSize = 23
+titleLimit.Parent = title
 
 local subtitle = Instance.new("TextLabel")
-subtitle.Name = "Subtitle"
-subtitle.Size = UDim2.fromOffset(62, 30)
-subtitle.Position = UDim2.fromOffset(20, 50)
+subtitle.Position = UDim2.fromOffset(18, 43)
+subtitle.Size = UDim2.new(1, -210, 0, 28)
 subtitle.BackgroundTransparency = 1
-subtitle.Text = "SALDO"
-subtitle.TextColor3 = Color3.fromRGB(170, 178, 188)
+subtitle.Text = "Compre o próximo nó para avançar"
+subtitle.TextColor3 = Color3.fromRGB(164, 172, 182)
 subtitle.TextXAlignment = Enum.TextXAlignment.Left
 subtitle.TextSize = 13
-subtitle.Font = Enum.Font.GothamBold
+subtitle.TextWrapped = true
+subtitle.Font = Enum.Font.GothamMedium
 subtitle.Parent = header
 
 local moneyLabel = Instance.new("TextLabel")
-moneyLabel.Name = "Money"
-moneyLabel.Position = UDim2.fromOffset(88, 48)
-moneyLabel.Size = UDim2.fromOffset(150, 34)
-moneyLabel.BackgroundColor3 = Color3.fromRGB(43, 50, 45)
+moneyLabel.AnchorPoint = Vector2.new(1, 1)
+moneyLabel.Position = UDim2.new(1, -58, 1, -10)
+moneyLabel.Size = UDim2.fromOffset(150, 30)
+moneyLabel.BackgroundColor3 = Color3.fromRGB(40, 49, 43)
 moneyLabel.BorderSizePixel = 0
 moneyLabel.Text = "R$ 0"
 moneyLabel.TextColor3 = Color3.fromRGB(100, 235, 140)
-moneyLabel.TextSize = 15
+moneyLabel.TextSize = 14
 moneyLabel.Font = Enum.Font.GothamBlack
 moneyLabel.Parent = header
-addCorner(moneyLabel, 17)
+corner(moneyLabel, 15)
 
 local closeButton = Instance.new("TextButton")
-closeButton.Name = "Close"
-closeButton.AnchorPoint = Vector2.new(1, 0.5)
-closeButton.Position = UDim2.new(1, -12, 0.5, 0)
+closeButton.AnchorPoint = Vector2.new(1, 0)
+closeButton.Position = UDim2.new(1, -12, 0, 12)
 closeButton.Size = UDim2.fromOffset(36, 36)
 closeButton.BackgroundColor3 = Color3.fromRGB(164, 53, 46)
 closeButton.BorderSizePixel = 0
@@ -157,140 +149,203 @@ closeButton.TextColor3 = Color3.new(1, 1, 1)
 closeButton.TextSize = 17
 closeButton.Font = Enum.Font.GothamBlack
 closeButton.Parent = header
-addCorner(closeButton, 18)
+corner(closeButton, 18)
 
-local content = Instance.new("ScrollingFrame")
-content.Name = "Content"
-content.Position = UDim2.fromOffset(16, 108)
-content.Size = UDim2.new(1, -32, 1, -124)
-content.BackgroundTransparency = 1
-content.BorderSizePixel = 0
-content.ScrollBarThickness = 5
-content.ScrollBarImageColor3 = Color3.fromRGB(210, 158, 37)
-content.AutomaticCanvasSize = Enum.AutomaticSize.Y
-content.CanvasSize = UDim2.fromOffset(0, 0)
-content.Parent = window
+local scroll = Instance.new("ScrollingFrame")
+scroll.Name = "TreeScroll"
+scroll.Position = UDim2.fromOffset(12, 94)
+scroll.Size = UDim2.new(1, -24, 1, -108)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.CanvasSize = UDim2.fromOffset(0, 568)
+scroll.ScrollBarThickness = 5
+scroll.ScrollBarImageColor3 = Color3.fromRGB(210, 158, 37)
+scroll.Parent = window
 
-local list = Instance.new("UIListLayout")
-list.Padding = UDim.new(0, 12)
-list.FillDirection = Enum.FillDirection.Vertical
-list.SortOrder = Enum.SortOrder.LayoutOrder
-list.Parent = content
+local rootNode = Instance.new("Frame")
+rootNode.Name = "RootNode"
+rootNode.AnchorPoint = Vector2.new(0.5, 0)
+rootNode.Position = UDim2.new(0.5, 0, 0, 2)
+rootNode.Size = UDim2.fromOffset(210, 54)
+rootNode.BackgroundColor3 = Color3.fromRGB(91, 69, 27)
+rootNode.BorderSizePixel = 0
+rootNode.Parent = scroll
+corner(rootNode, 10)
+stroke(rootNode, Color3.fromRGB(246, 196, 55), 2)
 
-type CardReferences = {
-	Root: Frame,
-	Level: TextLabel,
-	Current: TextLabel,
-	Next: TextLabel,
-	Buy: TextButton,
-}
+local rootText = Instance.new("TextLabel")
+rootText.Size = UDim2.fromScale(1, 1)
+rootText.BackgroundTransparency = 1
+rootText.Text = "SEU FERRO-VELHO"
+rootText.TextColor3 = Color3.fromRGB(255, 225, 125)
+rootText.TextSize = 16
+rootText.Font = Enum.Font.GothamBlack
+rootText.Parent = rootNode
 
-local function createCard(order: number, category: string, accent: Color3): CardReferences
-	local card = Instance.new("Frame")
-	card.Name = category .. "Card"
-	card.LayoutOrder = order
-	card.Size = UDim2.new(1, -6, 0, 238)
-	card.BackgroundColor3 = Color3.fromRGB(32, 37, 43)
-	card.BorderSizePixel = 0
-	card.Parent = content
-	addCorner(card, 12)
-	addStroke(card, accent, 1, 0.35)
+local trunk = Instance.new("Frame")
+trunk.Position = UDim2.new(0.5, -2, 0, 56)
+trunk.Size = UDim2.fromOffset(4, 25)
+trunk.BackgroundColor3 = Color3.fromRGB(135, 113, 62)
+trunk.BorderSizePixel = 0
+trunk.Parent = scroll
 
-	local accentBar = Instance.new("Frame")
-	accentBar.Size = UDim2.new(0, 7, 1, 0)
-	accentBar.BackgroundColor3 = accent
-	accentBar.BorderSizePixel = 0
-	accentBar.Parent = card
-	addCorner(accentBar, 12)
+local split = Instance.new("Frame")
+split.Position = UDim2.new(0.25, 0, 0, 79)
+split.Size = UDim2.new(0.5, 0, 0, 4)
+split.BackgroundColor3 = Color3.fromRGB(135, 113, 62)
+split.BorderSizePixel = 0
+split.Parent = scroll
 
-	local categoryLabel = Instance.new("TextLabel")
-	categoryLabel.Size = UDim2.new(1, -44, 0, 34)
-	categoryLabel.Position = UDim2.fromOffset(22, 12)
-	categoryLabel.BackgroundTransparency = 1
-	categoryLabel.Text = category
-	categoryLabel.TextColor3 = accent
-	categoryLabel.TextXAlignment = Enum.TextXAlignment.Left
-	categoryLabel.TextSize = 20
-	categoryLabel.Font = Enum.Font.GothamBlack
-	categoryLabel.Parent = card
-
-	local levelLabel = Instance.new("TextLabel")
-	levelLabel.Position = UDim2.fromOffset(22, 48)
-	levelLabel.Size = UDim2.fromOffset(155, 28)
-	levelLabel.BackgroundColor3 = Color3.fromRGB(45, 51, 59)
-	levelLabel.BorderSizePixel = 0
-	levelLabel.TextColor3 = Color3.fromRGB(225, 230, 236)
-	levelLabel.TextSize = 13
-	levelLabel.Font = Enum.Font.GothamBold
-	levelLabel.Parent = card
-	addCorner(levelLabel, 14)
-
-	local currentLabel = Instance.new("TextLabel")
-	currentLabel.Position = UDim2.fromOffset(22, 82)
-	currentLabel.Size = UDim2.new(1, -44, 0, 48)
-	currentLabel.BackgroundTransparency = 1
-	currentLabel.TextColor3 = Color3.fromRGB(230, 233, 238)
-	currentLabel.TextXAlignment = Enum.TextXAlignment.Left
-	currentLabel.TextYAlignment = Enum.TextYAlignment.Top
-	currentLabel.TextWrapped = true
-	currentLabel.TextSize = 15
-	currentLabel.Font = Enum.Font.GothamBold
-	currentLabel.Parent = card
-
-	local nextLabel = Instance.new("TextLabel")
-	nextLabel.Position = UDim2.fromOffset(22, 130)
-	nextLabel.Size = UDim2.new(1, -44, 0, 50)
-	nextLabel.BackgroundTransparency = 1
-	nextLabel.TextColor3 = Color3.fromRGB(170, 180, 192)
-	nextLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nextLabel.TextYAlignment = Enum.TextYAlignment.Top
-	nextLabel.TextWrapped = true
-	nextLabel.TextSize = 14
-	nextLabel.Font = Enum.Font.GothamMedium
-	nextLabel.Parent = card
-
-	local buyButton = Instance.new("TextButton")
-	buyButton.Name = "Buy"
-	buyButton.AnchorPoint = Vector2.new(0, 1)
-	buyButton.Position = UDim2.new(0, 22, 1, -14)
-	buyButton.Size = UDim2.new(1, -44, 0, 46)
-	buyButton.BackgroundColor3 = accent
-	buyButton.BorderSizePixel = 0
-	buyButton.TextColor3 = Color3.fromRGB(20, 24, 28)
-	buyButton.TextSize = 14
-	buyButton.TextWrapped = true
-	buyButton.Font = Enum.Font.GothamBlack
-	buyButton.AutoButtonColor = true
-	buyButton.Parent = card
-	addCorner(buyButton, 9)
-
-	return { Root = card, Level = levelLabel, Current = currentLabel, Next = nextLabel, Buy = buyButton }
+for _, scaleX in { 0.25, 0.75 } do
+	local branchLine = Instance.new("Frame")
+	branchLine.Position = UDim2.new(scaleX, -2, 0, 80)
+	branchLine.Size = UDim2.fromOffset(4, 22)
+	branchLine.BackgroundColor3 = Color3.fromRGB(135, 113, 62)
+	branchLine.BorderSizePixel = 0
+	branchLine.Parent = scroll
 end
 
-local toolCard = createCard(1, "FERRAMENTAS", Color3.fromRGB(87, 157, 255))
-local speedCard = createCard(2, "MOBILIDADE", Color3.fromRGB(54, 218, 180))
+type NodeReference = {
+	Button: TextButton,
+	State: TextLabel,
+	Outline: UIStroke,
+	Connector: Frame?,
+	Level: number,
+	Category: string,
+	Accent: Color3,
+}
+
+local allNodes: {NodeReference} = {}
+local purchasing = false
+local toastSerial = 0
+
+local function createBranch(name: string, category: string, accent: Color3, xScale: number, definitions: {any})
+	local branch = Instance.new("Frame")
+	branch.Name = name .. "Branch"
+	branch.Position = UDim2.new(xScale, 6, 0, 101)
+	branch.Size = UDim2.new(0.5, -12, 0, 455)
+	branch.BackgroundTransparency = 1
+	branch.Parent = scroll
+
+	local branchTitle = Instance.new("TextLabel")
+	branchTitle.Size = UDim2.new(1, 0, 0, 34)
+	branchTitle.BackgroundColor3 = Color3.fromRGB(31, 36, 42)
+	branchTitle.BorderSizePixel = 0
+	branchTitle.Text = name
+	branchTitle.TextColor3 = accent
+	branchTitle.TextSize = 15
+	branchTitle.Font = Enum.Font.GothamBlack
+	branchTitle.Parent = branch
+	corner(branchTitle, 8)
+	stroke(branchTitle, accent, 1, 0.3)
+
+	local y = 44
+	for index, definition in definitions do
+		local connector: Frame? = nil
+		if index > 1 then
+			connector = Instance.new("Frame")
+			connector.Name = "Connector_" .. index
+			connector.Position = UDim2.new(0.5, -2, 0, y - 12)
+			connector.Size = UDim2.fromOffset(4, 12)
+			connector.BackgroundColor3 = Color3.fromRGB(78, 84, 92)
+			connector.BorderSizePixel = 0
+			connector.Parent = branch
+		end
+
+		local node = Instance.new("TextButton")
+		node.Name = category .. "Level" .. definition.Level
+		node.Position = UDim2.new(0, 5, 0, y)
+		node.Size = UDim2.new(1, -10, 0, 68)
+		node.BackgroundColor3 = Color3.fromRGB(42, 47, 54)
+		node.BorderSizePixel = 0
+		node.Text = ""
+		node.AutoButtonColor = false
+		node.Parent = branch
+		corner(node, 9)
+		local outline = stroke(node, Color3.fromRGB(78, 84, 92), 1)
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Position = UDim2.fromOffset(8, 5)
+		nameLabel.Size = UDim2.new(1, -16, 0, 34)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Text = string.format("NÍVEL %d  •  %s", definition.Level, definition.Name)
+		nameLabel.TextColor3 = Color3.fromRGB(230, 234, 240)
+		nameLabel.TextSize = 12
+		nameLabel.TextWrapped = true
+		nameLabel.Font = Enum.Font.GothamBold
+		nameLabel.Parent = node
+
+		local effect = if category == "Tool"
+			then string.format("%.1fs por peça", definition.RemovalSeconds)
+			else string.format("%d studs/s", definition.Speed)
+		local effectLabel = Instance.new("TextLabel")
+		effectLabel.Position = UDim2.fromOffset(8, 38)
+		effectLabel.Size = UDim2.new(1, -16, 0, 23)
+		effectLabel.BackgroundTransparency = 1
+		effectLabel.Text = effect
+		effectLabel.TextColor3 = Color3.fromRGB(164, 174, 186)
+		effectLabel.TextSize = 11
+		effectLabel.Font = Enum.Font.GothamMedium
+		effectLabel.Parent = node
+
+		local state = Instance.new("TextLabel")
+		state.AnchorPoint = Vector2.new(1, 1)
+		state.Position = UDim2.new(1, -5, 1, -5)
+		state.Size = UDim2.fromOffset(92, 20)
+		state.BackgroundColor3 = Color3.fromRGB(65, 70, 78)
+		state.BorderSizePixel = 0
+		state.Text = "BLOQUEADO"
+		state.TextColor3 = Color3.fromRGB(190, 195, 202)
+		state.TextSize = 9
+		state.Font = Enum.Font.GothamBlack
+		state.Parent = node
+		corner(state, 10)
+
+		local reference: NodeReference = {
+			Button = node,
+			State = state,
+			Outline = outline,
+			Connector = connector,
+			Level = definition.Level,
+			Category = category,
+			Accent = accent,
+		}
+		table.insert(allNodes, reference)
+		y += 80
+	end
+end
+
+local toolDefinitions = {}
+local toolIndex = 1
+while ToolUpgradeConfig.Get(toolIndex) do
+	table.insert(toolDefinitions, ToolUpgradeConfig.Get(toolIndex))
+	toolIndex += 1
+end
+
+local speedDefinitions = {}
+for level = 1, SpeedUpgradeConfig.GetMaxLevel() do
+	table.insert(speedDefinitions, SpeedUpgradeConfig.Get(level))
+end
+
+createBranch("FERRAMENTAS", "Tool", Color3.fromRGB(87, 157, 255), 0, toolDefinitions)
+createBranch("MOBILIDADE", "Speed", Color3.fromRGB(54, 218, 180), 0.5, speedDefinitions)
 
 local toast = Instance.new("TextLabel")
-toast.Name = "Toast"
 toast.AnchorPoint = Vector2.new(0.5, 1)
-toast.Position = UDim2.new(0.5, 0, 1, -18)
-toast.Size = UDim2.new(0.8, 0, 0, 46)
+toast.Position = UDim2.new(0.5, 0, 1, -14)
+toast.Size = UDim2.new(0.82, 0, 0, 44)
 toast.BackgroundColor3 = Color3.fromRGB(35, 42, 48)
 toast.BackgroundTransparency = 1
 toast.BorderSizePixel = 0
-toast.Text = ""
-toast.TextColor3 = Color3.new(1, 1, 1)
 toast.TextTransparency = 1
-toast.TextSize = 15
+toast.TextColor3 = Color3.new(1, 1, 1)
+toast.TextSize = 14
 toast.TextWrapped = true
 toast.Font = Enum.Font.GothamBold
 toast.Visible = false
-toast.ZIndex = 10
+toast.ZIndex = 20
 toast.Parent = window
-addCorner(toast, 10)
-
-local purchasing = false
-local toastSerial = 0
+corner(toast, 10)
 
 local function getMoney(): number
 	local leaderstats = player:FindFirstChild("leaderstats")
@@ -298,46 +353,59 @@ local function getMoney(): number
 	return if money and money:IsA("IntValue") then money.Value else 0
 end
 
-local function setButtonState(button: TextButton, enabled: boolean, accent: Color3)
-	button.Active = enabled
-	button.AutoButtonColor = enabled
-	button.BackgroundColor3 = if enabled then accent else Color3.fromRGB(69, 74, 80)
-	button.TextColor3 = if enabled then Color3.fromRGB(20, 24, 28) else Color3.fromRGB(175, 180, 186)
+local function currentLevel(category: string): number
+	local attributeName = if category == "Tool" then "ToolLevel" else "SpeedLevel"
+	local value = player:GetAttribute(attributeName)
+	local maximum = if category == "Tool" then #toolDefinitions else #speedDefinitions
+	return if typeof(value) == "number" then math.clamp(value, 1, maximum) else 1
 end
 
-local function refresh()
+local function refreshTree()
 	moneyLabel.Text = formatMoney(getMoney())
+	for _, node in allNodes do
+		local activeLevel = currentLevel(node.Category)
+		local definitions = if node.Category == "Tool" then toolDefinitions else speedDefinitions
+		local definition = definitions[node.Level]
+		local isCurrent = node.Level == activeLevel
+		local isCompleted = node.Level < activeLevel
+		local isNext = node.Level == activeLevel + 1
+		if node.Connector then
+			node.Connector.BackgroundColor3 = if node.Level <= activeLevel
+				then Color3.fromRGB(75, 210, 145)
+				elseif isNext then node.Accent
+				else Color3.fromRGB(78, 84, 92)
+		end
 
-	local toolValue = player:GetAttribute("ToolLevel")
-	local toolLevel = if typeof(toolValue) == "number" then math.clamp(toolValue, 1, 2) else 1
-	local currentTool = ToolUpgradeConfig.Get(toolLevel)
-	local nextTool = ToolUpgradeConfig.Get(toolLevel + 1)
-	toolCard.Level.Text = string.format("NÍVEL %d / 2", toolLevel)
-	toolCard.Current.Text = string.format("Atual: %s  •  %.1fs por peça", currentTool and currentTool.Name or "Ferramentas básicas", currentTool and currentTool.RemovalSeconds or 1.5)
-	if nextTool and nextTool.PurchaseCost then
-		toolCard.Next.Text = string.format("Próxima: %s\nReduz o tempo para %.1fs por peça", nextTool.Name, nextTool.RemovalSeconds)
-		toolCard.Buy.Text = "COMPRAR  " .. formatMoney(nextTool.PurchaseCost)
-		setButtonState(toolCard.Buy, not purchasing, Color3.fromRGB(87, 157, 255))
-	else
-		toolCard.Next.Text = "Todas as melhorias de ferramenta foram adquiridas."
-		toolCard.Buy.Text = "NÍVEL MÁXIMO"
-		setButtonState(toolCard.Buy, false, Color3.fromRGB(87, 157, 255))
-	end
-
-	local speedValue = player:GetAttribute("SpeedLevel")
-	local speedLevel = if typeof(speedValue) == "number" then math.clamp(speedValue, 1, SpeedUpgradeConfig.GetMaxLevel()) else 1
-	local currentSpeed = SpeedUpgradeConfig.Get(speedLevel)
-	local nextSpeed = SpeedUpgradeConfig.Get(speedLevel + 1)
-	speedCard.Level.Text = string.format("NÍVEL %d / %d", speedLevel, SpeedUpgradeConfig.GetMaxLevel())
-	speedCard.Current.Text = string.format("Atual: %s  •  %d studs/s", currentSpeed and currentSpeed.Name or "Passo Padrão", currentSpeed and currentSpeed.Speed or 16)
-	if nextSpeed and nextSpeed.PurchaseCost then
-		speedCard.Next.Text = string.format("Próxima: %s\nAumenta sua velocidade para %d studs/s", nextSpeed.Name, nextSpeed.Speed)
-		speedCard.Buy.Text = "COMPRAR  " .. formatMoney(nextSpeed.PurchaseCost)
-		setButtonState(speedCard.Buy, not purchasing, Color3.fromRGB(54, 218, 180))
-	else
-		speedCard.Next.Text = "Todas as melhorias de mobilidade foram adquiridas."
-		speedCard.Buy.Text = "NÍVEL MÁXIMO"
-		setButtonState(speedCard.Buy, false, Color3.fromRGB(54, 218, 180))
+		node.Button.Active = isNext and not purchasing
+		if isCurrent then
+			node.Button.BackgroundColor3 = Color3.fromRGB(76, 63, 31)
+			node.Outline.Color = Color3.fromRGB(246, 196, 55)
+			node.Outline.Thickness = 2
+			node.State.BackgroundColor3 = Color3.fromRGB(190, 142, 30)
+			node.State.TextColor3 = Color3.fromRGB(30, 26, 18)
+			node.State.Text = "ATUAL"
+		elseif isCompleted then
+			node.Button.BackgroundColor3 = Color3.fromRGB(35, 72, 61)
+			node.Outline.Color = Color3.fromRGB(75, 210, 145)
+			node.Outline.Thickness = 1
+			node.State.BackgroundColor3 = Color3.fromRGB(55, 170, 112)
+			node.State.TextColor3 = Color3.fromRGB(20, 35, 28)
+			node.State.Text = "CONCLUÍDO"
+		elseif isNext then
+			node.Button.BackgroundColor3 = Color3.fromRGB(40, 53, 64)
+			node.Outline.Color = node.Accent
+			node.Outline.Thickness = 2
+			node.State.BackgroundColor3 = if purchasing then Color3.fromRGB(85, 90, 96) else node.Accent
+			node.State.TextColor3 = Color3.fromRGB(20, 24, 28)
+			node.State.Text = if purchasing then "AGUARDE" else formatMoney(definition.PurchaseCost or 0)
+		else
+			node.Button.BackgroundColor3 = Color3.fromRGB(37, 40, 45)
+			node.Outline.Color = Color3.fromRGB(68, 73, 80)
+			node.Outline.Thickness = 1
+			node.State.BackgroundColor3 = Color3.fromRGB(60, 64, 70)
+			node.State.TextColor3 = Color3.fromRGB(145, 150, 158)
+			node.State.Text = "BLOQUEADO"
+		end
 	end
 end
 
@@ -365,12 +433,12 @@ local function purchase(category: string)
 		return
 	end
 	purchasing = true
-	refresh()
+	refreshTree()
 	local callOk, response = pcall(function()
 		return purchaseRemote:InvokeServer(category)
 	end)
 	purchasing = false
-	refresh()
+	refreshTree()
 	if not callOk or typeof(response) ~= "table" then
 		showToast("Não foi possível falar com o servidor.", false)
 		return
@@ -378,12 +446,20 @@ local function purchase(category: string)
 	showToast(tostring(response.Message or "Resposta inválida do servidor."), response.Success == true)
 end
 
+for _, node in allNodes do
+	node.Button.MouseButton1Click:Connect(function()
+		if node.Level == currentLevel(node.Category) + 1 then
+			purchase(node.Category)
+		end
+	end)
+end
+
 local function openMenu()
-	refresh()
+	refreshTree()
 	backdrop.Visible = true
-	window.Size = UDim2.fromScale(0.76, 0.72)
+	window.Size = UDim2.fromScale(0.82, 0.78)
 	TweenService:Create(window, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = UDim2.fromScale(0.82, 0.78),
+		Size = UDim2.fromScale(0.88, 0.84),
 	}):Play()
 end
 
@@ -399,8 +475,6 @@ openButton.MouseLeave:Connect(function()
 end)
 openButton.MouseButton1Click:Connect(openMenu)
 closeButton.MouseButton1Click:Connect(closeMenu)
-toolCard.Buy.MouseButton1Click:Connect(function() purchase("Tool") end)
-speedCard.Buy.MouseButton1Click:Connect(function() purchase("Speed") end)
 
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed or not backdrop.Visible then return end
@@ -416,14 +490,14 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
-player:GetAttributeChangedSignal("ToolLevel"):Connect(refresh)
-player:GetAttributeChangedSignal("SpeedLevel"):Connect(refresh)
+player:GetAttributeChangedSignal("ToolLevel"):Connect(refreshTree)
+player:GetAttributeChangedSignal("SpeedLevel"):Connect(refreshTree)
 
 task.spawn(function()
 	local leaderstats = player:WaitForChild("leaderstats", 10)
 	local money = leaderstats and leaderstats:WaitForChild("Dinheiro", 10)
 	if money and money:IsA("IntValue") then
-		money:GetPropertyChangedSignal("Value"):Connect(refresh)
+		money:GetPropertyChangedSignal("Value"):Connect(refreshTree)
 	end
-	refresh()
+	refreshTree()
 end)
