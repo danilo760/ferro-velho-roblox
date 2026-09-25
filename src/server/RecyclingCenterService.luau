@@ -418,7 +418,7 @@ local function buildDock(index: number, parent: Model): DockData
 	----------------------------------------------------------------------
 	-- PORTAL / PLACA DA DOCA
 	----------------------------------------------------------------------
-	local signPost = createPart(dockModel, "SignArch", Vector3.new(15, 3.5, 0.6), dockCf * CFrame.new(0, 5.5, -6), Enum.Material.Metal, Color3.fromRGB(35, 38, 42), true, true)
+	local signPost = createPart(dockModel, "SignArch", Vector3.new(15, 3.5, 0.6), dockCf * CFrame.new(0, 5.5, -6), Enum.Material.Metal, Color3.fromRGB(35, 38, 42), true, false)
 	local signGui = Instance.new("SurfaceGui")
 	signGui.Face = Enum.NormalId.Front
 	signGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud

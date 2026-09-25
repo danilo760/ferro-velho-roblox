@@ -20,7 +20,16 @@ local PLOT_POSITIONS = {
 	Vector3.new(64, 0.5, 64),
 }
 
-local BOX_X_OFFSETS = { -22, 0, 22 }
+local function getBoxXOffset(plotPositionX: number, boxIndex: number): number
+	local isLeft = plotPositionX < 0
+	if boxIndex == 1 then
+		return if isLeft then 22 else -22
+	elseif boxIndex == 3 then
+		return if isLeft then -22 else 22
+	end
+	return 0
+end
+
 local BOX_REQUISITES = {
 	[1] = "INICIAL",
 	[2] = "REBIRTH 5 (R$ 500.000)",
@@ -57,7 +66,7 @@ local function createBox(plot: Model, boxIndex: number, position: Vector3): Mode
 	boxModel:SetAttribute("BoxIndex", boxIndex)
 	boxModel:SetAttribute("IsUnlocked", boxIndex == 1)
 
-	local xOffset = BOX_X_OFFSETS[boxIndex]
+	local xOffset = getBoxXOffset(position.X, boxIndex)
 	local boxPos = position + Vector3.new(xOffset, 0.1, -4)
 
 	-- Piso demarcado do Box (Concreto industrial escurecido)

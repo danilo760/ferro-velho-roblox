@@ -247,6 +247,16 @@ local function completeSession(session: CarSession)
 	end
 end
 
+local function getFallbackBoxXOffset(plotPositionX: number, boxIndex: number): number
+	local isLeft = plotPositionX < 0
+	if boxIndex == 1 then
+		return if isLeft then 15 else -15
+	elseif boxIndex == 3 then
+		return if isLeft then -15 else 15
+	end
+	return 0
+end
+
 spawnCarForBox = function(player: Player, plot: Model, boxIndex: number)
 	if not playerSessions[player.UserId] then
 		playerSessions[player.UserId] = {}
@@ -270,7 +280,7 @@ spawnCarForBox = function(player: Player, plot: Model, boxIndex: number)
 	if not boxOrigin or not hoistOrigin then
 		local originPart = plot:FindFirstChild("Origin")
 		assert(originPart and originPart:IsA("BasePart"), "Plot origin is missing")
-		local xOffset = if boxIndex == 1 then -15 elseif boxIndex == 2 then 0 else 15
+		local xOffset = getFallbackBoxXOffset(originPart.Position.X, boxIndex)
 		boxOrigin = originPart.CFrame * CFrame.new(xOffset, 0, -4)
 		hoistOrigin = originPart.CFrame * CFrame.new(xOffset - 4.5, 0.5, -9)
 	end
