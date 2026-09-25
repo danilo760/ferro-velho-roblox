@@ -132,18 +132,18 @@ function EngineHoistService.start(car: Model, home: CFrame, ownerUserId: number,
 	enginePrompt.Parent = point
 
 	local function refresh()
-		if engine:GetAttribute("PartState") ~= "Installed" then enginePrompt.Enabled = false return end
-		if not dependencyRemoved(car, "Hood") then enginePrompt.Enabled = false return end
-		enginePrompt.Enabled = true
-		if not dependencyRemoved(car, "Battery") then
-			enginePrompt.ActionText = "Bloqueado"
-			enginePrompt.ObjectText = "Remova Bateria"
-			enginePrompt.HoldDuration = 0
-		else
-			enginePrompt.ActionText = "Usar guincho"
-			enginePrompt.ObjectText = definition.DisplayName .. string.format(" (Box %d)", bIndex)
-			enginePrompt.HoldDuration = definition.RemovalSeconds
+		if engine:GetAttribute("PartState") ~= "Installed" then
+			enginePrompt.Enabled = false
+			return
 		end
+		if not dependencyRemoved(car, "Hood") or not dependencyRemoved(car, "Battery") then
+			enginePrompt.Enabled = false
+			return
+		end
+		enginePrompt.Enabled = true
+		enginePrompt.ActionText = "Usar guincho"
+		enginePrompt.ObjectText = definition.DisplayName .. string.format(" (Box %d)", bIndex)
+		enginePrompt.HoldDuration = definition.RemovalSeconds
 	end
 
 	refresh()

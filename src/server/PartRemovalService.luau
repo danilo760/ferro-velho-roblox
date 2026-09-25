@@ -87,20 +87,24 @@ function PartRemovalService.setupCar(car: Model, ownerUserId: number?, plotGroun
 		local state = runtime.part:GetAttribute("PartState")
 		local definition = PartsCatalog[runtime.part.Name]
 		if not definition then return end
-		runtime.prompt.Enabled = state ~= "Removing"
 		if state == "Installed" then
-			local allowed, blockerName = dependenciesRemoved(runtime)
-			runtime.prompt.ActionText = if allowed then "Remover" else "Bloqueado"
-			runtime.prompt.ObjectText = if allowed then definition.DisplayName else "Remova " .. (blockerName or "a peça anterior")
-			runtime.prompt.HoldDuration = if allowed then getRemovalSeconds(definition.RemovalSeconds) else 0
+			local allowed, _blockerName = dependenciesRemoved(runtime)
+			runtime.prompt.Enabled = allowed
+			runtime.prompt.ActionText = "Remover"
+			runtime.prompt.ObjectText = definition.DisplayName
+			runtime.prompt.HoldDuration = getRemovalSeconds(definition.RemovalSeconds)
 		elseif state == "Removed" then
+			runtime.prompt.Enabled = true
 			runtime.prompt.ActionText = "Pegar"
 			runtime.prompt.ObjectText = definition.DisplayName
 			runtime.prompt.HoldDuration = 0.25
 		elseif state == "Carried" then
+			runtime.prompt.Enabled = true
 			runtime.prompt.ActionText = "Soltar"
 			runtime.prompt.ObjectText = definition.DisplayName
 			runtime.prompt.HoldDuration = 0
+		else
+			runtime.prompt.Enabled = false
 		end
 	end
 
